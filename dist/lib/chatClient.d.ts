@@ -3,6 +3,7 @@ export type OnMessageCallback = (message: ChatMessage) => void;
 export declare class ChatClient {
     private sessionId;
     private clientName;
+    private brandName;
     private supportEmail;
     private apiUrl;
     private listeners;
@@ -14,6 +15,7 @@ export declare class ChatClient {
     constructor(options?: {
         sessionId?: string;
         clientName?: string;
+        brandName?: string;
         supportEmail?: string;
         apiUrl?: string;
         welcomeMessage?: string;

@@ -8,7 +8,7 @@ import { getStoredChatUser, storeChatUser, clearStoredChatUser, checkSessionRout
  * Automatically resolves user identity & roles via agnostic authRoutes,
  * supporting guests, authenticated clients, and staff/admin desks.
  */
-export const ConciergeChat = ({ authRoute, sessionCheckRoute, currentUser: explicitUser, allowGuest = true, brandName = 'Concierge Desk', logo, primaryColor = '#0d7490', apiUrl = '/api/live-chat/relay', supportEmail, welcomeMessage, position = 'bottom-right', onAuthSuccess, onSignOut, }) => {
+export const ConciergeChat = ({ authRoute, sessionCheckRoute, currentUser: explicitUser, allowGuest = true, brandName = 'Concierge Desk', logo, icon, primaryColor = '#0d7490', apiUrl = '/api/live-chat/relay', supportEmail, welcomeMessage, position = 'bottom-right', onAuthSuccess, onSignOut, }) => {
     const [user, setUser] = useState(() => explicitUser || getStoredChatUser());
     const [adminDeskOpen, setAdminDeskOpen] = useState(false);
     // Sync explicit user if updated by parent
@@ -46,7 +46,7 @@ export const ConciergeChat = ({ authRoute, sessionCheckRoute, currentUser: expli
         onSignOut?.();
     };
     const isAdminOrStaff = user?.role === 'admin' || user?.role === 'staff';
-    return (_jsxs(_Fragment, { children: [(!isAdminOrStaff || !adminDeskOpen) && (_jsx(LiveChatWidget, { brandName: brandName, logo: logo, primaryColor: primaryColor, apiUrl: apiUrl, supportEmail: supportEmail, welcomeMessage: welcomeMessage, position: position, currentUser: user, authRoute: authRoute, onAuthSuccess: handleAuthSuccess, onStaffLoginClick: () => {
+    return (_jsxs(_Fragment, { children: [(!isAdminOrStaff || !adminDeskOpen) && (_jsx(LiveChatWidget, { brandName: brandName, logo: logo, icon: icon, primaryColor: primaryColor, apiUrl: apiUrl, supportEmail: supportEmail, welcomeMessage: welcomeMessage, position: position, currentUser: user, authRoute: authRoute, onAuthSuccess: handleAuthSuccess, onStaffLoginClick: () => {
                     if (isAdminOrStaff) {
                         setAdminDeskOpen(true);
                     }

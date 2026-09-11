@@ -21,6 +21,7 @@ export const ConciergeChat: React.FC<ConciergeChatProps> = ({
   allowGuest = true,
   brandName = 'Concierge Desk',
   logo,
+  icon,
   primaryColor = '#0d7490',
   apiUrl = '/api/live-chat/relay',
   supportEmail,
@@ -80,6 +81,7 @@ export const ConciergeChat: React.FC<ConciergeChatProps> = ({
         <LiveChatWidget
           brandName={brandName}
           logo={logo}
+          icon={icon}
           primaryColor={primaryColor}
           apiUrl={apiUrl}
           supportEmail={supportEmail}

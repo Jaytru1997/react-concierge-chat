@@ -1,4 +1,4 @@
-import { dbGetMessages, dbSaveMessage } from './indexedDb';
+import { dbGetMessages, dbSaveMessage, dbDeleteMessage } from './indexedDb';
 import { getOrCreateClientSessionId, getClientName, resolveSupportEmail } from './session';
 import { triggerNativeNotification, requestNotificationPermission } from './notifications';
 export class ChatClient {
@@ -10,6 +10,12 @@ export class ChatClient {
             value: void 0
         });
         Object.defineProperty(this, "clientName", {
+            enumerable: true,
+            configurable: true,
+            writable: true,
+            value: void 0
+        });
+        Object.defineProperty(this, "brandName", {
             enumerable: true,
             configurable: true,
             writable: true,
@@ -65,6 +71,7 @@ export class ChatClient {
         });
         this.sessionId = options?.sessionId || getOrCreateClientSessionId();
         this.clientName = options?.clientName || getClientName();
+        this.brandName = options?.brandName || 'Support Desk';
         this.supportEmail = resolveSupportEmail(options?.supportEmail);
         this.apiUrl = options?.apiUrl || '/api/live-chat/relay';
         this.welcomeMessage = options?.welcomeMessage;
@@ -81,19 +88,43 @@ export class ChatClient {
         }
         this.isInitializing = true;
         try {
-            const history = await dbGetMessages(this.sessionId);
-            const hasGreetingOrAgent = history.some((m) => m.id.startsWith('greet_') || (m.sender === 'agent' && m.id === `greet_${this.sessionId}`));
+            let history = await dbGetMessages(this.sessionId);
+            const defaultText = this.welcomeMessage ||
+                `Hello! 👋 Welcome to ${this.brandName}. How can we assist you today?${this.supportEmail && !this.supportEmail.includes('example.com')
+                    ? ` (You can also reach our desk at ${this.supportEmail})`
+                    : ''}`;
+            // Purge / deduplicate legacy duplicate greetings stored in IndexedDB from earlier versions
+            const greetingMessages = history.filter((m) => m.id.startsWith('greet_') ||
+                (m.sender === 'agent' && (m.text.includes('Welcome to') || m.text.includes('assist you today'))));
+            if (greetingMessages.length > 1) {
+                // Keep only 1 greeting and delete the older/duplicate greetings from IndexedDB
+                for (let i = 1; i < greetingMessages.length; i++) {
+                    await dbDeleteMessage(greetingMessages[i].id).catch(() => { });
+                }
+                const redundantIds = new Set(greetingMessages.slice(1).map((g) => g.id));
+                history = history.filter((m) => !redundantIds.has(m.id));
+            }
+            // If an existing greeting has old placeholder text ('Welcome to Concierge Support' / 'support@example.com'), migrate it
+            if (greetingMessages.length > 0 && !this.welcomeMessage) {
+                const primaryGreeting = greetingMessages[0];
+                if (primaryGreeting.text.includes('Welcome to Concierge Support') ||
+                    primaryGreeting.text.includes('support@example.com') ||
+                    primaryGreeting.senderName === 'VIP Concierge') {
+                    primaryGreeting.text = defaultText;
+                    primaryGreeting.senderName = `${this.brandName} Support`;
+                    await dbSaveMessage(primaryGreeting);
+                }
+            }
+            const hasGreetingOrAgent = history.some((m) => m.id.startsWith('greet_') || m.sender === 'agent');
             if (history.length > 0) {
                 this.lastTimestamp = Math.max(...history.map((m) => m.timestamp));
             }
             if (!hasGreetingOrAgent && history.length === 0) {
-                const defaultText = this.welcomeMessage ||
-                    `Hello! 👋 Welcome to Concierge Support. How can we assist you today? (You can also reach our desk at ${this.supportEmail})`;
                 const initialGreeting = {
                     id: `greet_${this.sessionId}`,
                     sessionId: this.sessionId,
                     sender: 'agent',
-                    senderName: 'VIP Concierge',
+                    senderName: `${this.brandName} Support`,
                     text: defaultText,
                     timestamp: Date.now(),
                     status: 'delivered',

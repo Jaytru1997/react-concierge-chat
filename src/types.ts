@@ -85,6 +85,7 @@ export interface ConciergeChatProps {
   allowGuest?: boolean;
   brandName?: string;
   logo?: string;
+  icon?: React.ReactNode;
   primaryColor?: string;
   apiUrl?: string;
   supportEmail?: string;

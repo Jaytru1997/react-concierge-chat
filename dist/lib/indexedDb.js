@@ -138,3 +138,13 @@ export async function dbDeleteSession(sessionId) {
         tx.onerror = () => reject(tx.error);
     });
 }
+export async function dbDeleteMessage(id) {
+    const db = await getChatDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction('messages', 'readwrite');
+        const store = tx.objectStore('messages');
+        store.delete(id);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    });
+}

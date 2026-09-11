@@ -13,6 +13,7 @@ export const LiveChatWidget: React.FC<LiveChatWidgetProps & {
   supportEmail,
   brandName = 'Concierge Desk',
   logo,
+  icon,
   primaryColor = '#0d7490',
   apiUrl = '/api/live-chat/relay',
   position = 'bottom-right',
@@ -38,7 +39,7 @@ export const LiveChatWidget: React.FC<LiveChatWidgetProps & {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    const client = new ChatClient({ supportEmail, apiUrl, welcomeMessage });
+    const client = new ChatClient({ supportEmail, brandName, apiUrl, welcomeMessage });
     clientRef.current = client;
 
     client.init().then((history) => {
@@ -74,7 +75,7 @@ export const LiveChatWidget: React.FC<LiveChatWidgetProps & {
       client.destroy();
       window.removeEventListener('concierge:open-live-chat', handleExternalOpen);
     };
-  }, [supportEmail, apiUrl, welcomeMessage]);
+  }, [supportEmail, brandName, apiUrl, welcomeMessage]);
 
   useEffect(() => {
     if (modalOpen && view === 'chat') {
@@ -181,8 +182,8 @@ export const LiveChatWidget: React.FC<LiveChatWidgetProps & {
           }}
           aria-label="Open live chat"
         >
-          {logo ? (
-            <img src={logo} alt={brandName} style={{ width: '28px', height: '28px', objectFit: 'contain' }} />
+          {icon ? (
+            icon
           ) : (
             <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
               <path d="M4.5 3C3.67 3 3 3.67 3 4.5V16.5C3 17.33 3.67 18 4.5 18H7V21.5L11.5 18H19.5C20.33 18 21 17.33 21 16.5V4.5C21 3.67 20.33 3 19.5 3H4.5ZM8 11.5C7.45 11.5 7 11.05 7 10.5C7 9.95 7.45 9.5 8 9.5C8.55 9.5 9 9.95 9 10.5C9 11.05 8.55 11.5 8 11.5ZM12 11.5C11.45 11.5 11 11.05 11 10.5C11 9.95 11.45 9.5 12 9.5C12.55 9.5 13 9.95 13 10.5C13 11.05 12.55 11.5 12 11.5ZM16 11.5C15.45 11.5 15 11.05 15 10.5C15 9.95 15.45 9.5 16 9.5C16.55 9.5 17 9.95 17 10.5C17 11.05 16.55 11.5 16 11.5Z" />
@@ -251,17 +252,19 @@ export const LiveChatWidget: React.FC<LiveChatWidgetProps & {
                   width: '36px',
                   height: '36px',
                   borderRadius: '10px',
-                  backgroundColor: `${primaryColor}25`,
-                  border: `1px solid ${primaryColor}50`,
+                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.12)',
                   color: primaryColor,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   overflow: 'hidden',
+                  padding: '4px',
+                  boxSizing: 'border-box',
                 }}
               >
                 {logo ? (
-                  <img src={logo} alt={brandName} style={{ width: '22px', height: '22px', objectFit: 'contain' }} />
+                  <img src={logo} alt={brandName} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                 ) : (
                   <span style={{ fontSize: '16px' }}>💬</span>
                 )}

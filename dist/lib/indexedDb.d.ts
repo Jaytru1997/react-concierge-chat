@@ -6,3 +6,4 @@ export declare function dbGetAllSessions(): Promise<ChatSession[]>;
 export declare function dbSaveSession(session: ChatSession): Promise<void>;
 export declare function dbMarkSessionAsRead(sessionId: string): Promise<void>;
 export declare function dbDeleteSession(sessionId: string): Promise<void>;
+export declare function dbDeleteMessage(id: string): Promise<void>;
