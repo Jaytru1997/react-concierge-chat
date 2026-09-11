@@ -8,7 +8,8 @@ declare global {
     var __concierge_chat_store__: InMemoryStore | undefined;
 }
 /**
- * Creates standard HTTP / SSE handlers for Next.js App Router (route.ts).
+ * Production-grade HTTP & SSE handlers for Next.js App Router (route.ts).
+ * Includes memory exhaustion defenses, input sanitization, and session isolation.
  *
  * Example usage in `app/api/live-chat/relay/route.ts`:
  * ```ts
@@ -19,6 +20,7 @@ declare global {
  */
 export declare function createNextRelayHandler(options?: {
     maxStoredMessagesPerSession?: number;
+    corsOrigin?: string;
 }): {
     GET: (request: Request) => Promise<Response>;
     POST: (request: Request) => Promise<Response>;
