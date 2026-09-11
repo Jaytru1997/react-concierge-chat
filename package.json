@@ -1,6 +1,6 @@
 {
   "name": "react-concierge-chat",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Zero-database, IndexedDB-persisted bidirectional real-time live chat widget & admin console for React with native notifications.",
   "main": "dist/index.js",
   "module": "dist/index.js",

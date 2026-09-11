@@ -57,6 +57,12 @@ export class ChatClient {
             writable: true,
             value: void 0
         });
+        Object.defineProperty(this, "isInitializing", {
+            enumerable: true,
+            configurable: true,
+            writable: true,
+            value: false
+        });
         this.sessionId = options?.sessionId || getOrCreateClientSessionId();
         this.clientName = options?.clientName || getClientName();
         this.supportEmail = resolveSupportEmail(options?.supportEmail);
@@ -70,29 +76,41 @@ export class ChatClient {
         return this.supportEmail;
     }
     async init() {
-        const history = await dbGetMessages(this.sessionId);
-        if (history.length > 0) {
-            this.lastTimestamp = Math.max(...history.map((m) => m.timestamp));
+        if (this.isInitializing) {
+            return await dbGetMessages(this.sessionId);
         }
-        else {
-            const defaultText = this.welcomeMessage ||
-                `Hello! 👋 Welcome to Concierge Support. How can we assist you today? (You can also reach our desk at ${this.supportEmail})`;
-            const initialGreeting = {
-                id: `greet_${Date.now()}`,
-                sessionId: this.sessionId,
-                sender: 'agent',
-                senderName: 'VIP Concierge',
-                text: defaultText,
-                timestamp: Date.now(),
-                status: 'delivered',
-                read: true,
-            };
-            await dbSaveMessage(initialGreeting);
-            history.push(initialGreeting);
-            this.lastTimestamp = initialGreeting.timestamp;
+        this.isInitializing = true;
+        try {
+            const history = await dbGetMessages(this.sessionId);
+            const hasGreetingOrAgent = history.some((m) => m.id.startsWith('greet_') || (m.sender === 'agent' && m.id === `greet_${this.sessionId}`));
+            if (history.length > 0) {
+                this.lastTimestamp = Math.max(...history.map((m) => m.timestamp));
+            }
+            if (!hasGreetingOrAgent && history.length === 0) {
+                const defaultText = this.welcomeMessage ||
+                    `Hello! 👋 Welcome to Concierge Support. How can we assist you today? (You can also reach our desk at ${this.supportEmail})`;
+                const initialGreeting = {
+                    id: `greet_${this.sessionId}`,
+                    sessionId: this.sessionId,
+                    sender: 'agent',
+                    senderName: 'VIP Concierge',
+                    text: defaultText,
+                    timestamp: Date.now(),
+                    status: 'delivered',
+                    read: true,
+                };
+                await dbSaveMessage(initialGreeting);
+                history.push(initialGreeting);
+                this.lastTimestamp = initialGreeting.timestamp;
+            }
+            // Deduplicate history strictly by ID
+            const uniqueHistory = Array.from(new Map(history.map((m) => [m.id, m])).values()).sort((a, b) => a.timestamp - b.timestamp);
+            this.startRealtimeStream();
+            return uniqueHistory;
         }
-        this.startRealtimeStream();
-        return history;
+        finally {
+            this.isInitializing = false;
+        }
     }
     onMessage(cb) {
         this.listeners.add(cb);

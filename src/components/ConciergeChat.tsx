@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { ChatUser, ConciergeChatProps } from '../types';
 import { LiveChatWidget } from './LiveChatWidget';
 import { AdminLiveChat } from './AdminLiveChat';
-import { StaffLoginModal } from './StaffLoginModal';
 import {
   getStoredChatUser,
   storeChatUser,
@@ -21,6 +20,7 @@ export const ConciergeChat: React.FC<ConciergeChatProps> = ({
   currentUser: explicitUser,
   allowGuest = true,
   brandName = 'Concierge Desk',
+  logo,
   primaryColor = '#0d7490',
   apiUrl = '/api/live-chat/relay',
   supportEmail,
@@ -30,7 +30,6 @@ export const ConciergeChat: React.FC<ConciergeChatProps> = ({
   onSignOut,
 }) => {
   const [user, setUser] = useState<ChatUser | null>(() => explicitUser || getStoredChatUser());
-  const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [adminDeskOpen, setAdminDeskOpen] = useState(false);
 
   // Sync explicit user if updated by parent
@@ -76,28 +75,29 @@ export const ConciergeChat: React.FC<ConciergeChatProps> = ({
 
   return (
     <>
-      {/* Client Floating Widget */}
+      {/* Client Floating Widget with Confined Inline Login */}
       {(!isAdminOrStaff || !adminDeskOpen) && (
         <LiveChatWidget
           brandName={brandName}
+          logo={logo}
           primaryColor={primaryColor}
           apiUrl={apiUrl}
           supportEmail={supportEmail}
           welcomeMessage={welcomeMessage}
           position={position}
           currentUser={user}
+          authRoute={authRoute}
+          onAuthSuccess={handleAuthSuccess}
           onStaffLoginClick={() => {
             if (isAdminOrStaff) {
               setAdminDeskOpen(true);
-            } else {
-              setLoginModalOpen(true);
             }
           }}
           onSignOut={user ? handleSignOut : undefined}
         />
       )}
 
-      {/* Staff Admin Desk Overlay (When Authenticated as Admin/Staff) */}
+      {/* Staff Admin Desk Overlay (When Authenticated as Admin/Staff and opened) */}
       {isAdminOrStaff && adminDeskOpen && (
         <div
           style={{
@@ -131,21 +131,13 @@ export const ConciergeChat: React.FC<ConciergeChatProps> = ({
               apiUrl={apiUrl}
               primaryColor={primaryColor}
               brandName={brandName}
+              logo={logo}
               onSwitchToWidget={() => setAdminDeskOpen(false)}
               onSignOut={handleSignOut}
             />
           </div>
         </div>
       )}
-
-      {/* Inline Staff Login Modal */}
-      <StaffLoginModal
-        isOpen={loginModalOpen}
-        onClose={() => setLoginModalOpen(false)}
-        authRoute={authRoute}
-        primaryColor={primaryColor}
-        onSuccess={handleAuthSuccess}
-      />
     </>
   );
 };

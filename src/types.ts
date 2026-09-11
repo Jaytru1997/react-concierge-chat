@@ -42,6 +42,7 @@ export interface ChatSession {
 export interface LiveChatWidgetProps {
   supportEmail?: string;
   brandName?: string;
+  logo?: string;
   primaryColor?: string;
   apiUrl?: string;
   icon?: React.ReactNode;
@@ -57,6 +58,7 @@ export interface AdminLiveChatProps {
   apiUrl?: string;
   primaryColor?: string;
   brandName?: string;
+  logo?: string;
   onDeleteSession?: (sessionId: string) => void;
   onSwitchToWidget?: () => void;
   onSignOut?: () => void;
@@ -82,6 +84,7 @@ export interface ConciergeChatProps {
    */
   allowGuest?: boolean;
   brandName?: string;
+  logo?: string;
   primaryColor?: string;
   apiUrl?: string;
   supportEmail?: string;

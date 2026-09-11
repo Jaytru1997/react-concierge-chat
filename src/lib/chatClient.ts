@@ -15,6 +15,7 @@ export class ChatClient {
   private pollInterval: any = null;
   private eventSource: EventSource | null = null;
   private welcomeMessage?: string;
+  private isInitializing: boolean = false;
 
   constructor(options?: {
     sessionId?: string;
@@ -39,32 +40,52 @@ export class ChatClient {
   }
 
   public async init(): Promise<ChatMessage[]> {
-    const history = await dbGetMessages(this.sessionId);
-
-    if (history.length > 0) {
-      this.lastTimestamp = Math.max(...history.map((m) => m.timestamp));
-    } else {
-      const defaultText =
-        this.welcomeMessage ||
-        `Hello! 👋 Welcome to Concierge Support. How can we assist you today? (You can also reach our desk at ${this.supportEmail})`;
-
-      const initialGreeting: ChatMessage = {
-        id: `greet_${Date.now()}`,
-        sessionId: this.sessionId,
-        sender: 'agent',
-        senderName: 'VIP Concierge',
-        text: defaultText,
-        timestamp: Date.now(),
-        status: 'delivered',
-        read: true,
-      };
-      await dbSaveMessage(initialGreeting);
-      history.push(initialGreeting);
-      this.lastTimestamp = initialGreeting.timestamp;
+    if (this.isInitializing) {
+      return await dbGetMessages(this.sessionId);
     }
+    this.isInitializing = true;
 
-    this.startRealtimeStream();
-    return history;
+    try {
+      const history = await dbGetMessages(this.sessionId);
+      const hasGreetingOrAgent = history.some(
+        (m) => m.id.startsWith('greet_') || (m.sender === 'agent' && m.id === `greet_${this.sessionId}`)
+      );
+
+      if (history.length > 0) {
+        this.lastTimestamp = Math.max(...history.map((m) => m.timestamp));
+      }
+
+      if (!hasGreetingOrAgent && history.length === 0) {
+        const defaultText =
+          this.welcomeMessage ||
+          `Hello! 👋 Welcome to Concierge Support. How can we assist you today? (You can also reach our desk at ${this.supportEmail})`;
+
+        const initialGreeting: ChatMessage = {
+          id: `greet_${this.sessionId}`,
+          sessionId: this.sessionId,
+          sender: 'agent',
+          senderName: 'VIP Concierge',
+          text: defaultText,
+          timestamp: Date.now(),
+          status: 'delivered',
+          read: true,
+        };
+
+        await dbSaveMessage(initialGreeting);
+        history.push(initialGreeting);
+        this.lastTimestamp = initialGreeting.timestamp;
+      }
+
+      // Deduplicate history strictly by ID
+      const uniqueHistory = Array.from(
+        new Map(history.map((m) => [m.id, m])).values()
+      ).sort((a, b) => a.timestamp - b.timestamp);
+
+      this.startRealtimeStream();
+      return uniqueHistory;
+    } finally {
+      this.isInitializing = false;
+    }
   }
 
   public onMessage(cb: OnMessageCallback): () => void {

@@ -2,16 +2,14 @@ import { jsx as _jsx, Fragment as _Fragment, jsxs as _jsxs } from "react/jsx-run
 import { useState, useEffect } from 'react';
 import { LiveChatWidget } from './LiveChatWidget';
 import { AdminLiveChat } from './AdminLiveChat';
-import { StaffLoginModal } from './StaffLoginModal';
 import { getStoredChatUser, storeChatUser, clearStoredChatUser, checkSessionRoute, } from '../lib/auth';
 /**
  * Universal Concierge Chat component.
  * Automatically resolves user identity & roles via agnostic authRoutes,
  * supporting guests, authenticated clients, and staff/admin desks.
  */
-export const ConciergeChat = ({ authRoute, sessionCheckRoute, currentUser: explicitUser, allowGuest = true, brandName = 'Concierge Desk', primaryColor = '#0d7490', apiUrl = '/api/live-chat/relay', supportEmail, welcomeMessage, position = 'bottom-right', onAuthSuccess, onSignOut, }) => {
+export const ConciergeChat = ({ authRoute, sessionCheckRoute, currentUser: explicitUser, allowGuest = true, brandName = 'Concierge Desk', logo, primaryColor = '#0d7490', apiUrl = '/api/live-chat/relay', supportEmail, welcomeMessage, position = 'bottom-right', onAuthSuccess, onSignOut, }) => {
     const [user, setUser] = useState(() => explicitUser || getStoredChatUser());
-    const [loginModalOpen, setLoginModalOpen] = useState(false);
     const [adminDeskOpen, setAdminDeskOpen] = useState(false);
     // Sync explicit user if updated by parent
     useEffect(() => {
@@ -48,12 +46,9 @@ export const ConciergeChat = ({ authRoute, sessionCheckRoute, currentUser: expli
         onSignOut?.();
     };
     const isAdminOrStaff = user?.role === 'admin' || user?.role === 'staff';
-    return (_jsxs(_Fragment, { children: [(!isAdminOrStaff || !adminDeskOpen) && (_jsx(LiveChatWidget, { brandName: brandName, primaryColor: primaryColor, apiUrl: apiUrl, supportEmail: supportEmail, welcomeMessage: welcomeMessage, position: position, currentUser: user, onStaffLoginClick: () => {
+    return (_jsxs(_Fragment, { children: [(!isAdminOrStaff || !adminDeskOpen) && (_jsx(LiveChatWidget, { brandName: brandName, logo: logo, primaryColor: primaryColor, apiUrl: apiUrl, supportEmail: supportEmail, welcomeMessage: welcomeMessage, position: position, currentUser: user, authRoute: authRoute, onAuthSuccess: handleAuthSuccess, onStaffLoginClick: () => {
                     if (isAdminOrStaff) {
                         setAdminDeskOpen(true);
-                    }
-                    else {
-                        setLoginModalOpen(true);
                     }
                 }, onSignOut: user ? handleSignOut : undefined })), isAdminOrStaff && adminDeskOpen && (_jsx("div", { style: {
                     position: 'fixed',
@@ -76,5 +71,5 @@ export const ConciergeChat = ({ authRoute, sessionCheckRoute, currentUser: expli
                         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6)',
                         display: 'flex',
                         flexDirection: 'column',
-                    }, children: _jsx(AdminLiveChat, { adminName: user?.name || 'Staff Support', apiUrl: apiUrl, primaryColor: primaryColor, brandName: brandName, onSwitchToWidget: () => setAdminDeskOpen(false), onSignOut: handleSignOut }) }) })), _jsx(StaffLoginModal, { isOpen: loginModalOpen, onClose: () => setLoginModalOpen(false), authRoute: authRoute, primaryColor: primaryColor, onSuccess: handleAuthSuccess })] }));
+                    }, children: _jsx(AdminLiveChat, { adminName: user?.name || 'Staff Support', apiUrl: apiUrl, primaryColor: primaryColor, brandName: brandName, logo: logo, onSwitchToWidget: () => setAdminDeskOpen(false), onSignOut: handleSignOut }) }) }))] }));
 };

@@ -4,8 +4,10 @@ import { ChatClient } from '../lib/chatClient';
 import { dbMarkSessionAsRead } from '../lib/indexedDb';
 import { requestNotificationPermission } from '../lib/notifications';
 import { readFileAsBase64, validateFile, downloadAttachment, formatBytes } from '../lib/fileHelper';
-export const LiveChatWidget = ({ supportEmail, brandName = 'Concierge Desk', primaryColor = '#0d7490', apiUrl = '/api/live-chat/relay', position = 'bottom-right', welcomeMessage, currentUser, onStaffLoginClick, onSignOut, }) => {
+import { StaffLoginForm } from './StaffLoginForm';
+export const LiveChatWidget = ({ supportEmail, brandName = 'Concierge Desk', logo, primaryColor = '#0d7490', apiUrl = '/api/live-chat/relay', position = 'bottom-right', welcomeMessage, currentUser, authRoute, onAuthSuccess, onStaffLoginClick, onSignOut, }) => {
     const [modalOpen, setModalOpen] = useState(false);
+    const [view, setView] = useState('chat');
     const [messages, setMessages] = useState([]);
     const [inputVal, setInputVal] = useState('');
     const [unreadCount, setUnreadCount] = useState(0);
@@ -49,10 +51,10 @@ export const LiveChatWidget = ({ supportEmail, brandName = 'Concierge Desk', pri
         };
     }, [supportEmail, apiUrl, welcomeMessage]);
     useEffect(() => {
-        if (modalOpen) {
+        if (modalOpen && view === 'chat') {
             messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
         }
-    }, [messages, modalOpen, pendingAttachments]);
+    }, [messages, modalOpen, pendingAttachments, view]);
     const handleToggleModal = () => {
         const nextState = !modalOpen;
         setModalOpen(nextState);
@@ -135,7 +137,7 @@ export const LiveChatWidget = ({ supportEmail, brandName = 'Concierge Desk', pri
                         justifyContent: 'center',
                         boxShadow: `0 10px 25px ${primaryColor}66`,
                         transition: 'all 0.25s ease',
-                    }, "aria-label": "Open live chat", children: [_jsx("svg", { width: "24", height: "24", viewBox: "0 0 24 24", fill: "currentColor", children: _jsx("path", { d: "M4.5 3C3.67 3 3 3.67 3 4.5V16.5C3 17.33 3.67 18 4.5 18H7V21.5L11.5 18H19.5C20.33 18 21 17.33 21 16.5V4.5C21 3.67 20.33 3 19.5 3H4.5ZM8 11.5C7.45 11.5 7 11.05 7 10.5C7 9.95 7.45 9.5 8 9.5C8.55 9.5 9 9.95 9 10.5C9 11.05 8.55 11.5 8 11.5ZM12 11.5C11.45 11.5 11 11.05 11 10.5C11 9.95 11.45 9.5 12 9.5C12.55 9.5 13 9.95 13 10.5C13 11.05 12.55 11.5 12 11.5ZM16 11.5C15.45 11.5 15 11.05 15 10.5C15 9.95 15.45 9.5 16 9.5C16.55 9.5 17 9.95 17 10.5C17 11.05 16.55 11.5 16 11.5Z" }) }), unreadCount > 0 && (_jsx("span", { style: {
+                    }, "aria-label": "Open live chat", children: [logo ? (_jsx("img", { src: logo, alt: brandName, style: { width: '28px', height: '28px', objectFit: 'contain' } })) : (_jsx("svg", { width: "24", height: "24", viewBox: "0 0 24 24", fill: "currentColor", children: _jsx("path", { d: "M4.5 3C3.67 3 3 3.67 3 4.5V16.5C3 17.33 3.67 18 4.5 18H7V21.5L11.5 18H19.5C20.33 18 21 17.33 21 16.5V4.5C21 3.67 20.33 3 19.5 3H4.5ZM8 11.5C7.45 11.5 7 11.05 7 10.5C7 9.95 7.45 9.5 8 9.5C8.55 9.5 9 9.95 9 10.5C9 11.05 8.55 11.5 8 11.5ZM12 11.5C11.45 11.5 11 11.05 11 10.5C11 9.95 11.45 9.5 12 9.5C12.55 9.5 13 9.95 13 10.5C13 11.05 12.55 11.5 12 11.5ZM16 11.5C15.45 11.5 15 11.05 15 10.5C15 9.95 15.45 9.5 16 9.5C16.55 9.5 17 9.95 17 10.5C17 11.05 16.55 11.5 16 11.5Z" }) })), unreadCount > 0 && (_jsx("span", { style: {
                                 position: 'absolute',
                                 top: '-4px',
                                 right: '-4px',
@@ -182,27 +184,46 @@ export const LiveChatWidget = ({ supportEmail, brandName = 'Concierge Desk', pri
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'center',
-                                            fontWeight: 'bold',
-                                            fontSize: '16px',
-                                        }, children: ["\uD83D\uDCAC", _jsx("span", { style: {
+                                            overflow: 'hidden',
+                                        }, children: [logo ? (_jsx("img", { src: logo, alt: brandName, style: { width: '22px', height: '22px', objectFit: 'contain' } })) : (_jsx("span", { style: { fontSize: '16px' }, children: "\uD83D\uDCAC" })), _jsx("span", { style: {
                                                     position: 'absolute',
-                                                    bottom: '-2px',
-                                                    right: '-2px',
-                                                    width: '10px',
-                                                    height: '10px',
+                                                    bottom: '-1px',
+                                                    right: '-1px',
+                                                    width: '9px',
+                                                    height: '9px',
                                                     backgroundColor: '#10B981',
                                                     borderRadius: '50%',
                                                     border: '1.5px solid #1e293b',
-                                                } })] }), _jsxs("div", { children: [_jsx("div", { style: { fontWeight: '700', fontSize: '14px', lineHeight: '1.2' }, children: brandName }), _jsx("div", { style: { fontSize: '11px', color: '#94a3b8' }, children: currentUser ? `Logged in: ${currentUser.name}` : 'Live Agents Online' })] })] }), _jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: '4px' }, children: [onStaffLoginClick && (_jsx("button", { type: "button", onClick: onStaffLoginClick, title: isStaffUser ? 'Switch to Staff Desk' : 'Staff Sign In', style: {
-                                            background: isStaffUser ? `${primaryColor}30` : 'transparent',
-                                            border: isStaffUser ? `1px solid ${primaryColor}60` : 'none',
-                                            color: isStaffUser ? '#38bdf8' : '#94a3b8',
+                                                } })] }), _jsxs("div", { children: [_jsx("div", { style: { fontWeight: '700', fontSize: '14px', lineHeight: '1.2' }, children: brandName }), _jsx("div", { style: {
+                                                    fontSize: '11px',
+                                                    color: '#94a3b8',
+                                                    maxWidth: '180px',
+                                                    overflow: 'hidden',
+                                                    textOverflow: 'ellipsis',
+                                                    whiteSpace: 'nowrap',
+                                                }, children: currentUser ? (_jsx("span", { style: { color: '#38bdf8' }, title: currentUser.email || currentUser.name, children: currentUser.email || currentUser.name })) : ('Live Agents Online') })] })] }), _jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: '4px' }, children: [!currentUser && (_jsx("button", { type: "button", onClick: () => setView(view === 'auth' ? 'chat' : 'auth'), title: view === 'auth' ? 'Back to chat' : 'Staff sign in', style: {
+                                            background: view === 'auth' ? `${primaryColor}30` : 'transparent',
+                                            border: view === 'auth' ? `1px solid ${primaryColor}60` : 'none',
+                                            color: view === 'auth' ? '#38bdf8' : '#94a3b8',
                                             cursor: 'pointer',
                                             padding: '6px',
                                             borderRadius: '6px',
                                             display: 'flex',
                                             alignItems: 'center',
-                                        }, children: _jsxs("svg", { width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [_jsx("rect", { x: "3", y: "11", width: "18", height: "11", rx: "2", ry: "2" }), _jsx("path", { d: "M7 11V7a5 5 0 0 1 10 0v4" })] }) })), currentUser && onSignOut && (_jsx("button", { type: "button", onClick: onSignOut, title: "Sign Out", style: {
+                                            gap: '4px',
+                                            fontSize: '11px',
+                                        }, children: _jsxs("svg", { width: "15", height: "15", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [_jsx("rect", { x: "3", y: "11", width: "18", height: "11", rx: "2", ry: "2" }), _jsx("path", { d: "M7 11V7a5 5 0 0 1 10 0v4" })] }) })), isStaffUser && onStaffLoginClick && (_jsx("button", { type: "button", onClick: onStaffLoginClick, title: "Open Multi-Session Staff Desk", style: {
+                                            background: `${primaryColor}30`,
+                                            border: `1px solid ${primaryColor}60`,
+                                            color: '#38bdf8',
+                                            cursor: 'pointer',
+                                            padding: '5px 8px',
+                                            borderRadius: '6px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            fontSize: '11px',
+                                            fontWeight: 600,
+                                        }, children: "Desk" })), currentUser && onSignOut && (_jsx("button", { type: "button", onClick: onSignOut, title: "Sign Out", style: {
                                             background: 'transparent',
                                             border: 'none',
                                             color: '#94a3b8',
@@ -220,154 +241,157 @@ export const LiveChatWidget = ({ supportEmail, brandName = 'Concierge Desk', pri
                                             borderRadius: '6px',
                                             display: 'flex',
                                             alignItems: 'center',
-                                        }, "aria-label": "Close live chat", children: _jsxs("svg", { width: "18", height: "18", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.5", children: [_jsx("line", { x1: "18", y1: "6", x2: "6", y2: "18" }), _jsx("line", { x1: "6", y1: "6", x2: "18", y2: "18" })] }) })] })] }), _jsxs("div", { style: {
-                            flex: 1,
-                            padding: '16px',
-                            overflowY: 'auto',
-                            backgroundColor: '#090d16',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '12px',
-                            fontSize: '13.5px',
-                        }, children: [messages.map((m) => {
-                                const isClient = m.sender === 'client';
-                                const timeStr = new Date(m.timestamp).toLocaleTimeString([], {
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                });
-                                return (_jsx("div", { style: {
-                                        display: 'flex',
-                                        justifyContent: isClient ? 'flex-end' : 'flex-start',
-                                    }, children: _jsxs("div", { style: {
-                                            maxWidth: '85%',
-                                            padding: '10px 14px',
-                                            borderRadius: '12px',
-                                            backgroundColor: isClient ? primaryColor : '#1e293b',
-                                            color: '#f8fafc',
-                                            border: isClient ? 'none' : '1px solid rgba(255, 255, 255, 0.08)',
-                                            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.25)',
-                                            lineHeight: '1.45',
-                                            wordBreak: 'break-word',
-                                        }, children: [!isClient && m.senderName && (_jsx("div", { style: { fontSize: '10px', fontWeight: 'bold', color: '#38bdf8', marginBottom: '3px', textTransform: 'uppercase' }, children: m.senderName })), m.text && _jsx("div", { children: m.text }), m.attachments && m.attachments.length > 0 && (_jsx("div", { style: { marginTop: m.text ? '8px' : '0', display: 'flex', flexDirection: 'column', gap: '6px' }, children: m.attachments.map((att, idx) => (_jsx("div", { children: att.type === 'image' ? (_jsxs("div", { onClick: () => setPreviewImage(att.data), style: {
-                                                            borderRadius: '8px',
-                                                            overflow: 'hidden',
-                                                            cursor: 'pointer',
-                                                            border: '1px solid rgba(255, 255, 255, 0.15)',
-                                                            backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                                                            maxWidth: '240px',
-                                                        }, children: [_jsx("img", { src: att.data, alt: att.name, style: {
-                                                                    width: '100%',
-                                                                    height: 'auto',
-                                                                    maxHeight: '180px',
-                                                                    objectFit: 'cover',
-                                                                    display: 'block',
-                                                                } }), _jsxs("div", { style: {
-                                                                    fontSize: '11px',
-                                                                    padding: '4px 8px',
-                                                                    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-                                                                    color: '#e2e8f0',
-                                                                    display: 'flex',
-                                                                    justifyContent: 'space-between',
-                                                                }, children: [_jsx("span", { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '140px' }, children: att.name }), _jsx("span", { children: formatBytes(att.size) })] })] })) : (_jsxs("div", { onClick: () => downloadAttachment(att), style: {
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: '8px',
-                                                            padding: '8px 10px',
-                                                            backgroundColor: 'rgba(0, 0, 0, 0.25)',
-                                                            border: '1px solid rgba(255, 255, 255, 0.15)',
-                                                            borderRadius: '8px',
-                                                            cursor: 'pointer',
-                                                            transition: 'background 0.2s',
-                                                        }, children: [_jsx("div", { style: {
-                                                                    width: '28px',
-                                                                    height: '28px',
-                                                                    borderRadius: '6px',
-                                                                    backgroundColor: 'rgba(239, 68, 68, 0.2)',
-                                                                    color: '#ef4444',
+                                        }, "aria-label": "Close live chat", children: _jsxs("svg", { width: "18", height: "18", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.5", children: [_jsx("line", { x1: "18", y1: "6", x2: "6", y2: "18" }), _jsx("line", { x1: "6", y1: "6", x2: "18", y2: "18" })] }) })] })] }), view === 'auth' ? (_jsx(StaffLoginForm, { authRoute: authRoute, primaryColor: primaryColor, onBack: () => setView('chat'), onSuccess: (authResult) => {
+                            onAuthSuccess?.(authResult);
+                            setView('chat');
+                        } })) : (_jsxs(_Fragment, { children: [_jsxs("div", { style: {
+                                    flex: 1,
+                                    padding: '16px',
+                                    overflowY: 'auto',
+                                    backgroundColor: '#090d16',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '12px',
+                                    fontSize: '13.5px',
+                                }, children: [messages.map((m) => {
+                                        const isClient = m.sender === 'client';
+                                        const timeStr = new Date(m.timestamp).toLocaleTimeString([], {
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                        });
+                                        return (_jsx("div", { style: {
+                                                display: 'flex',
+                                                justifyContent: isClient ? 'flex-end' : 'flex-start',
+                                            }, children: _jsxs("div", { style: {
+                                                    maxWidth: '85%',
+                                                    padding: '10px 14px',
+                                                    borderRadius: '12px',
+                                                    backgroundColor: isClient ? primaryColor : '#1e293b',
+                                                    color: '#f8fafc',
+                                                    border: isClient ? 'none' : '1px solid rgba(255, 255, 255, 0.08)',
+                                                    boxShadow: '0 2px 6px rgba(0, 0, 0, 0.25)',
+                                                    lineHeight: '1.45',
+                                                    wordBreak: 'break-word',
+                                                }, children: [!isClient && m.senderName && (_jsx("div", { style: { fontSize: '10px', fontWeight: 'bold', color: '#38bdf8', marginBottom: '3px', textTransform: 'uppercase' }, children: m.senderName })), m.text && _jsx("div", { children: m.text }), m.attachments && m.attachments.length > 0 && (_jsx("div", { style: { marginTop: m.text ? '8px' : '0', display: 'flex', flexDirection: 'column', gap: '6px' }, children: m.attachments.map((att, idx) => (_jsx("div", { children: att.type === 'image' ? (_jsxs("div", { onClick: () => setPreviewImage(att.data), style: {
+                                                                    borderRadius: '8px',
+                                                                    overflow: 'hidden',
+                                                                    cursor: 'pointer',
+                                                                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                                                                    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                                                                    maxWidth: '240px',
+                                                                }, children: [_jsx("img", { src: att.data, alt: att.name, style: {
+                                                                            width: '100%',
+                                                                            height: 'auto',
+                                                                            maxHeight: '180px',
+                                                                            objectFit: 'cover',
+                                                                            display: 'block',
+                                                                        } }), _jsxs("div", { style: {
+                                                                            fontSize: '11px',
+                                                                            padding: '4px 8px',
+                                                                            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                                                                            color: '#e2e8f0',
+                                                                            display: 'flex',
+                                                                            justifyContent: 'space-between',
+                                                                        }, children: [_jsx("span", { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '140px' }, children: att.name }), _jsx("span", { children: formatBytes(att.size) })] })] })) : (_jsxs("div", { onClick: () => downloadAttachment(att), style: {
                                                                     display: 'flex',
                                                                     alignItems: 'center',
-                                                                    justifyContent: 'center',
-                                                                    fontWeight: 'bold',
-                                                                    fontSize: '10px',
-                                                                    flexShrink: 0,
-                                                                }, children: "PDF" }), _jsxs("div", { style: { overflow: 'hidden', flex: 1 }, children: [_jsx("div", { style: { fontSize: '12px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }, children: att.name }), _jsxs("div", { style: { fontSize: '10px', opacity: 0.75 }, children: [formatBytes(att.size), " \u2022 Click to download"] })] }), _jsxs("svg", { width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", children: [_jsx("path", { d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" }), _jsx("polyline", { points: "7 10 12 15 17 10" }), _jsx("line", { x1: "12", y1: "15", x2: "12", y2: "3" })] })] })) }, idx))) })), _jsxs("div", { style: {
-                                                    fontSize: '10px',
-                                                    marginTop: '4px',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '4px',
-                                                    justifyContent: isClient ? 'flex-end' : 'flex-start',
-                                                    color: isClient ? 'rgba(255, 255, 255, 0.7)' : '#94a3b8',
-                                                }, children: [_jsx("span", { children: timeStr }), isClient && (_jsx("span", { children: m.status === 'sending' ? '⏳' : m.status === 'read' ? '✓✓' : '✓' }))] })] }) }, m.id));
-                            }), _jsx("div", { ref: messagesEndRef })] }), pendingAttachments.length > 0 && (_jsx("div", { style: {
-                            padding: '8px 12px',
-                            backgroundColor: '#1e293b',
-                            borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-                            display: 'flex',
-                            gap: '8px',
-                            overflowX: 'auto',
-                        }, children: pendingAttachments.map((att, idx) => (_jsxs("div", { style: {
-                                position: 'relative',
-                                padding: '4px 8px',
-                                backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                                borderRadius: '6px',
-                                border: '1px solid rgba(255, 255, 255, 0.1)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                fontSize: '11px',
-                                color: '#e2e8f0',
-                            }, children: [_jsx("span", { children: att.type === 'pdf' ? '📄' : '🖼️' }), _jsx("span", { style: { maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }, children: att.name }), _jsx("button", { type: "button", onClick: () => handleRemovePendingAttachment(idx), style: {
-                                        background: 'none',
-                                        border: 'none',
-                                        color: '#f87171',
-                                        cursor: 'pointer',
-                                        padding: '0 2px',
-                                        fontSize: '13px',
-                                    }, children: "\u00D7" })] }, idx))) })), fileError && (_jsx("div", { style: {
-                            padding: '6px 12px',
-                            backgroundColor: 'rgba(239, 68, 68, 0.15)',
-                            color: '#f87171',
-                            fontSize: '11px',
-                            borderTop: '1px solid rgba(239, 68, 68, 0.3)',
-                        }, children: fileError })), _jsxs("form", { onSubmit: handleSendMessage, style: {
-                            padding: '12px 14px',
-                            backgroundColor: '#0f172a',
-                            borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-                            display: 'flex',
-                            gap: '8px',
-                            alignItems: 'center',
-                        }, children: [_jsx("input", { type: "file", ref: fileInputRef, onChange: handleFileSelect, accept: "image/png,image/jpeg,image/webp,image/gif,application/pdf", style: { display: 'none' }, multiple: true }), _jsx("button", { type: "button", onClick: () => fileInputRef.current?.click(), title: "Attach image or PDF (strictly in-memory)", style: {
-                                    background: 'transparent',
-                                    border: 'none',
-                                    color: '#94a3b8',
-                                    cursor: 'pointer',
-                                    padding: '6px',
-                                    borderRadius: '6px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                }, children: _jsx("svg", { width: "18", height: "18", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: _jsx("path", { d: "M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" }) }) }), _jsx("input", { type: "text", placeholder: "Type a message or attach a file...", value: inputVal, onChange: (e) => setInputVal(e.target.value), disabled: isSending, style: {
-                                    flex: 1,
+                                                                    gap: '8px',
+                                                                    padding: '8px 10px',
+                                                                    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+                                                                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                                                                    borderRadius: '8px',
+                                                                    cursor: 'pointer',
+                                                                    transition: 'background 0.2s',
+                                                                }, children: [_jsx("div", { style: {
+                                                                            width: '28px',
+                                                                            height: '28px',
+                                                                            borderRadius: '6px',
+                                                                            backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                                                                            color: '#ef4444',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            justifyContent: 'center',
+                                                                            fontWeight: 'bold',
+                                                                            fontSize: '10px',
+                                                                            flexShrink: 0,
+                                                                        }, children: "PDF" }), _jsxs("div", { style: { overflow: 'hidden', flex: 1 }, children: [_jsx("div", { style: { fontSize: '12px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }, children: att.name }), _jsxs("div", { style: { fontSize: '10px', opacity: 0.75 }, children: [formatBytes(att.size), " \u2022 Click to download"] })] }), _jsxs("svg", { width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", children: [_jsx("path", { d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" }), _jsx("polyline", { points: "7 10 12 15 17 10" }), _jsx("line", { x1: "12", y1: "15", x2: "12", y2: "3" })] })] })) }, idx))) })), _jsxs("div", { style: {
+                                                            fontSize: '10px',
+                                                            marginTop: '4px',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '4px',
+                                                            justifyContent: isClient ? 'flex-end' : 'flex-start',
+                                                            color: isClient ? 'rgba(255, 255, 255, 0.7)' : '#94a3b8',
+                                                        }, children: [_jsx("span", { children: timeStr }), isClient && (_jsx("span", { children: m.status === 'sending' ? '⏳' : m.status === 'read' ? '✓✓' : '✓' }))] })] }) }, m.id));
+                                    }), _jsx("div", { ref: messagesEndRef })] }), pendingAttachments.length > 0 && (_jsx("div", { style: {
                                     padding: '8px 12px',
-                                    borderRadius: '8px',
                                     backgroundColor: '#1e293b',
-                                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                                    color: '#f8fafc',
-                                    fontSize: '13px',
-                                    outline: 'none',
-                                } }), _jsx("button", { type: "submit", disabled: (!inputVal.trim() && pendingAttachments.length === 0) || isSending, style: {
-                                    backgroundColor: primaryColor,
-                                    color: '#FFFFFF',
-                                    border: 'none',
-                                    borderRadius: '8px',
-                                    padding: '8px 14px',
-                                    cursor: (!inputVal.trim() && pendingAttachments.length === 0) || isSending ? 'not-allowed' : 'pointer',
-                                    opacity: (!inputVal.trim() && pendingAttachments.length === 0) || isSending ? 0.5 : 1,
+                                    borderTop: '1px solid rgba(255, 255, 255, 0.08)',
                                     display: 'flex',
+                                    gap: '8px',
+                                    overflowX: 'auto',
+                                }, children: pendingAttachments.map((att, idx) => (_jsxs("div", { style: {
+                                        position: 'relative',
+                                        padding: '4px 8px',
+                                        backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                                        borderRadius: '6px',
+                                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        fontSize: '11px',
+                                        color: '#e2e8f0',
+                                    }, children: [_jsx("span", { children: att.type === 'pdf' ? '📄' : '🖼️' }), _jsx("span", { style: { maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }, children: att.name }), _jsx("button", { type: "button", onClick: () => handleRemovePendingAttachment(idx), style: {
+                                                background: 'none',
+                                                border: 'none',
+                                                color: '#f87171',
+                                                cursor: 'pointer',
+                                                padding: '0 2px',
+                                                fontSize: '13px',
+                                            }, children: "\u00D7" })] }, idx))) })), fileError && (_jsx("div", { style: {
+                                    padding: '6px 12px',
+                                    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                                    color: '#f87171',
+                                    fontSize: '11px',
+                                    borderTop: '1px solid rgba(239, 68, 68, 0.3)',
+                                }, children: fileError })), _jsxs("form", { onSubmit: handleSendMessage, style: {
+                                    padding: '12px 14px',
+                                    backgroundColor: '#0f172a',
+                                    borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                                    display: 'flex',
+                                    gap: '8px',
                                     alignItems: 'center',
-                                    justifyContent: 'center',
-                                }, children: _jsx("svg", { width: "15", height: "15", viewBox: "0 0 24 24", fill: "currentColor", children: _jsx("path", { d: "M1.946 9.315c-.522-.174-.527-.455.01-.634l19.087-6.362c.529-.176.832.12.684.638l-5.454 19.086c-.15.529-.455.547-.679.045L12 14l6-8-8 6-6.054-2.685z" }) }) })] })] })), previewImage && (_jsx("div", { style: {
+                                }, children: [_jsx("input", { type: "file", ref: fileInputRef, onChange: handleFileSelect, accept: "image/png,image/jpeg,image/webp,image/gif,application/pdf", style: { display: 'none' }, multiple: true }), _jsx("button", { type: "button", onClick: () => fileInputRef.current?.click(), title: "Attach image or PDF (strictly in-memory)", style: {
+                                            background: 'transparent',
+                                            border: 'none',
+                                            color: '#94a3b8',
+                                            cursor: 'pointer',
+                                            padding: '6px',
+                                            borderRadius: '6px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                        }, children: _jsx("svg", { width: "18", height: "18", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: _jsx("path", { d: "M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" }) }) }), _jsx("input", { type: "text", placeholder: "Type a message or attach a file...", value: inputVal, onChange: (e) => setInputVal(e.target.value), disabled: isSending, style: {
+                                            flex: 1,
+                                            padding: '8px 12px',
+                                            borderRadius: '8px',
+                                            backgroundColor: '#1e293b',
+                                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                                            color: '#f8fafc',
+                                            fontSize: '13px',
+                                            outline: 'none',
+                                        } }), _jsx("button", { type: "submit", disabled: (!inputVal.trim() && pendingAttachments.length === 0) || isSending, style: {
+                                            backgroundColor: primaryColor,
+                                            color: '#FFFFFF',
+                                            border: 'none',
+                                            borderRadius: '8px',
+                                            padding: '8px 14px',
+                                            cursor: (!inputVal.trim() && pendingAttachments.length === 0) || isSending ? 'not-allowed' : 'pointer',
+                                            opacity: (!inputVal.trim() && pendingAttachments.length === 0) || isSending ? 0.5 : 1,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                        }, children: _jsx("svg", { width: "15", height: "15", viewBox: "0 0 24 24", fill: "currentColor", children: _jsx("path", { d: "M1.946 9.315c-.522-.174-.527-.455.01-.634l19.087-6.362c.529-.176.832.12.684.638l-5.454 19.086c-.15.529-.455.547-.679.045L12 14l6-8-8 6-6.054-2.685z" }) }) })] })] }))] })), previewImage && (_jsx("div", { style: {
                     position: 'fixed',
                     inset: 0,
                     backgroundColor: 'rgba(0, 0, 0, 0.9)',

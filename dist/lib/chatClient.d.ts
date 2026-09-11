@@ -10,6 +10,7 @@ export declare class ChatClient {
     private pollInterval;
     private eventSource;
     private welcomeMessage?;
+    private isInitializing;
     constructor(options?: {
         sessionId?: string;
         clientName?: string;
