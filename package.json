@@ -1,0 +1,49 @@
+{
+  "name": "react-concierge-chat",
+  "version": "1.0.0",
+  "description": "Zero-database, IndexedDB-persisted bidirectional real-time live chat widget & admin console for React with native notifications.",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "react",
+    "livechat",
+    "live-chat",
+    "support",
+    "concierge",
+    "indexeddb",
+    "chat-widget",
+    "zero-database",
+    "notifications",
+    "realtime"
+  ],
+  "author": "Jaytru",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Jaytru1997/react-concierge-chat.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Jaytru1997/react-concierge-chat/issues"
+  },
+  "homepage": "https://github.com/Jaytru1997/react-concierge-chat#readme",
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "typescript": "^5.5.0"
+  }
+}

@@ -1,0 +1,250 @@
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
+import { useState, useEffect, useRef } from 'react';
+import { ChatClient } from '../lib/chatClient';
+import { dbMarkSessionAsRead } from '../lib/indexedDb';
+import { requestNotificationPermission } from '../lib/notifications';
+export const LiveChatWidget = ({ supportEmail, brandName = 'Concierge Desk', primaryColor = '#0d7490', apiUrl = '/api/live-chat/relay', position = 'bottom-right', welcomeMessage, currentUser, onStaffLoginClick, onSignOut, }) => {
+    const [modalOpen, setModalOpen] = useState(false);
+    const [messages, setMessages] = useState([]);
+    const [inputVal, setInputVal] = useState('');
+    const [unreadCount, setUnreadCount] = useState(0);
+    const [isSending, setIsSending] = useState(false);
+    const clientRef = useRef(null);
+    const messagesEndRef = useRef(null);
+    useEffect(() => {
+        const client = new ChatClient({ supportEmail, apiUrl, welcomeMessage });
+        clientRef.current = client;
+        client.init().then((history) => {
+            setMessages(history);
+        });
+        const unsubscribe = client.onMessage((newMsg) => {
+            setMessages((prev) => {
+                const exists = prev.some((m) => m.id === newMsg.id);
+                if (exists) {
+                    return prev.map((m) => (m.id === newMsg.id ? newMsg : m));
+                }
+                return [...prev, newMsg];
+            });
+            if (!modalOpen && newMsg.sender === 'agent') {
+                setUnreadCount((c) => c + 1);
+            }
+        });
+        const handleExternalOpen = () => {
+            setModalOpen(true);
+            setUnreadCount(0);
+            if (clientRef.current) {
+                dbMarkSessionAsRead(clientRef.current.getSessionId());
+            }
+        };
+        window.addEventListener('concierge:open-live-chat', handleExternalOpen);
+        return () => {
+            unsubscribe();
+            client.destroy();
+            window.removeEventListener('concierge:open-live-chat', handleExternalOpen);
+        };
+    }, [supportEmail, apiUrl, welcomeMessage]);
+    useEffect(() => {
+        if (modalOpen) {
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [messages, modalOpen]);
+    const handleToggleModal = () => {
+        const nextState = !modalOpen;
+        setModalOpen(nextState);
+        if (nextState) {
+            setUnreadCount(0);
+            requestNotificationPermission();
+            if (clientRef.current) {
+                dbMarkSessionAsRead(clientRef.current.getSessionId());
+            }
+        }
+    };
+    const handleSendMessage = async (e) => {
+        e.preventDefault();
+        if (!inputVal.trim() || !clientRef.current || isSending)
+            return;
+        const textToSend = inputVal.trim();
+        setInputVal('');
+        setIsSending(true);
+        try {
+            await clientRef.current.sendMessage(textToSend);
+        }
+        catch {
+        }
+        finally {
+            setIsSending(false);
+        }
+    };
+    const isLeft = position === 'bottom-left';
+    const isStaffUser = currentUser?.role === 'admin' || currentUser?.role === 'staff';
+    return (_jsxs(_Fragment, { children: [_jsx("div", { style: {
+                    position: 'fixed',
+                    bottom: '24px',
+                    [isLeft ? 'left' : 'right']: '24px',
+                    zIndex: 99999,
+                    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                }, children: _jsxs("button", { type: "button", onClick: handleToggleModal, style: {
+                        position: 'relative',
+                        width: '56px',
+                        height: '56px',
+                        borderRadius: '16px',
+                        backgroundColor: primaryColor,
+                        color: '#FFFFFF',
+                        border: 'none',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: `0 10px 25px ${primaryColor}66`,
+                        transition: 'all 0.25s ease',
+                    }, "aria-label": "Open live chat", children: [_jsx("svg", { width: "24", height: "24", viewBox: "0 0 24 24", fill: "currentColor", children: _jsx("path", { d: "M4.5 3C3.67 3 3 3.67 3 4.5V16.5C3 17.33 3.67 18 4.5 18H7V21.5L11.5 18H19.5C20.33 18 21 17.33 21 16.5V4.5C21 3.67 20.33 3 19.5 3H4.5ZM8 11.5C7.45 11.5 7 11.05 7 10.5C7 9.95 7.45 9.5 8 9.5C8.55 9.5 9 9.95 9 10.5C9 11.05 8.55 11.5 8 11.5ZM12 11.5C11.45 11.5 11 11.05 11 10.5C11 9.95 11.45 9.5 12 9.5C12.55 9.5 13 9.95 13 10.5C13 11.05 12.55 11.5 12 11.5ZM16 11.5C15.45 11.5 15 11.05 15 10.5C15 9.95 15.45 9.5 16 9.5C16.55 9.5 17 9.95 17 10.5C17 11.05 16.55 11.5 16 11.5Z" }) }), unreadCount > 0 && (_jsx("span", { style: {
+                                position: 'absolute',
+                                top: '-4px',
+                                right: '-4px',
+                                backgroundColor: '#EF4444',
+                                color: '#FFFFFF',
+                                borderRadius: '9999px',
+                                fontSize: '11px',
+                                fontWeight: 'bold',
+                                padding: '2px 6px',
+                                border: '2px solid #FFFFFF',
+                            }, children: unreadCount > 9 ? '9+' : unreadCount }))] }) }), modalOpen && (_jsxs("div", { style: {
+                    position: 'fixed',
+                    bottom: '24px',
+                    [isLeft ? 'left' : 'right']: '24px',
+                    width: '380px',
+                    maxWidth: 'calc(100vw - 32px)',
+                    height: '530px',
+                    maxHeight: 'calc(100vh - 100px)',
+                    backgroundColor: '#0f172a',
+                    borderRadius: '16px',
+                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'hidden',
+                    zIndex: 100000,
+                    fontFamily: 'system-ui, -apple-system, sans-serif',
+                    color: '#f8fafc',
+                }, children: [_jsxs("div", { style: {
+                            padding: '14px 16px',
+                            backgroundColor: '#1e293b',
+                            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                        }, children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: '10px' }, children: [_jsxs("div", { style: {
+                                            position: 'relative',
+                                            width: '36px',
+                                            height: '36px',
+                                            borderRadius: '10px',
+                                            backgroundColor: `${primaryColor}25`,
+                                            border: `1px solid ${primaryColor}50`,
+                                            color: primaryColor,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            fontWeight: 'bold',
+                                            fontSize: '16px',
+                                        }, children: ["\uD83D\uDCAC", _jsx("span", { style: {
+                                                    position: 'absolute',
+                                                    bottom: '-2px',
+                                                    right: '-2px',
+                                                    width: '10px',
+                                                    height: '10px',
+                                                    backgroundColor: '#10B981',
+                                                    borderRadius: '50%',
+                                                    border: '1.5px solid #1e293b',
+                                                } })] }), _jsxs("div", { children: [_jsx("div", { style: { fontWeight: '700', fontSize: '14px', lineHeight: '1.2' }, children: brandName }), _jsx("div", { style: { fontSize: '11px', color: '#94a3b8' }, children: currentUser ? `Logged in: ${currentUser.name}` : 'Live Agents Online' })] })] }), _jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: '4px' }, children: [onStaffLoginClick && (_jsx("button", { type: "button", onClick: onStaffLoginClick, title: isStaffUser ? 'Switch to Staff Desk' : 'Staff Sign In', style: {
+                                            background: isStaffUser ? `${primaryColor}30` : 'transparent',
+                                            border: isStaffUser ? `1px solid ${primaryColor}60` : 'none',
+                                            color: isStaffUser ? '#38bdf8' : '#94a3b8',
+                                            cursor: 'pointer',
+                                            padding: '6px',
+                                            borderRadius: '6px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                        }, children: _jsxs("svg", { width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [_jsx("rect", { x: "3", y: "11", width: "18", height: "11", rx: "2", ry: "2" }), _jsx("path", { d: "M7 11V7a5 5 0 0 1 10 0v4" })] }) })), currentUser && onSignOut && (_jsx("button", { type: "button", onClick: onSignOut, title: "Sign Out", style: {
+                                            background: 'transparent',
+                                            border: 'none',
+                                            color: '#94a3b8',
+                                            cursor: 'pointer',
+                                            padding: '6px',
+                                            borderRadius: '6px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                        }, children: _jsxs("svg", { width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [_jsx("path", { d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" }), _jsx("polyline", { points: "16 17 21 12 16 7" }), _jsx("line", { x1: "21", y1: "12", x2: "9", y2: "12" })] }) })), _jsx("button", { type: "button", onClick: () => setModalOpen(false), style: {
+                                            background: 'transparent',
+                                            border: 'none',
+                                            color: '#94a3b8',
+                                            cursor: 'pointer',
+                                            padding: '6px',
+                                            borderRadius: '6px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                        }, "aria-label": "Close live chat", children: _jsxs("svg", { width: "18", height: "18", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.5", children: [_jsx("line", { x1: "18", y1: "6", x2: "6", y2: "18" }), _jsx("line", { x1: "6", y1: "6", x2: "18", y2: "18" })] }) })] })] }), _jsxs("div", { style: {
+                            flex: 1,
+                            padding: '16px',
+                            overflowY: 'auto',
+                            backgroundColor: '#090d16',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '10px',
+                            fontSize: '13.5px',
+                        }, children: [messages.map((m) => {
+                                const isClient = m.sender === 'client';
+                                const timeStr = new Date(m.timestamp).toLocaleTimeString([], {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                });
+                                return (_jsx("div", { style: {
+                                        display: 'flex',
+                                        justifyContent: isClient ? 'flex-end' : 'flex-start',
+                                    }, children: _jsxs("div", { style: {
+                                            maxWidth: '85%',
+                                            padding: '10px 14px',
+                                            borderRadius: '12px',
+                                            backgroundColor: isClient ? primaryColor : '#1e293b',
+                                            color: '#f8fafc',
+                                            border: isClient ? 'none' : '1px solid rgba(255, 255, 255, 0.08)',
+                                            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.25)',
+                                            lineHeight: '1.45',
+                                            wordBreak: 'break-word',
+                                        }, children: [!isClient && m.senderName && (_jsx("div", { style: { fontSize: '10px', fontWeight: 'bold', color: '#38bdf8', marginBottom: '2px', textTransform: 'uppercase' }, children: m.senderName })), _jsx("div", { children: m.text }), _jsxs("div", { style: {
+                                                    fontSize: '10px',
+                                                    marginTop: '4px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '4px',
+                                                    justifyContent: isClient ? 'flex-end' : 'flex-start',
+                                                    color: isClient ? 'rgba(255, 255, 255, 0.7)' : '#94a3b8',
+                                                }, children: [_jsx("span", { children: timeStr }), isClient && (_jsx("span", { children: m.status === 'sending' ? '⏳' : m.status === 'read' ? '✓✓' : '✓' }))] })] }) }, m.id));
+                            }), _jsx("div", { ref: messagesEndRef })] }), _jsxs("form", { onSubmit: handleSendMessage, style: {
+                            padding: '12px 14px',
+                            backgroundColor: '#0f172a',
+                            borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                            display: 'flex',
+                            gap: '8px',
+                            alignItems: 'center',
+                        }, children: [_jsx("input", { type: "text", placeholder: "Type your message...", value: inputVal, onChange: (e) => setInputVal(e.target.value), disabled: isSending, style: {
+                                    flex: 1,
+                                    padding: '8px 12px',
+                                    borderRadius: '8px',
+                                    backgroundColor: '#1e293b',
+                                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                                    color: '#f8fafc',
+                                    fontSize: '13px',
+                                    outline: 'none',
+                                } }), _jsx("button", { type: "submit", disabled: !inputVal.trim() || isSending, style: {
+                                    backgroundColor: primaryColor,
+                                    color: '#FFFFFF',
+                                    border: 'none',
+                                    borderRadius: '8px',
+                                    padding: '8px 14px',
+                                    cursor: !inputVal.trim() || isSending ? 'not-allowed' : 'pointer',
+                                    opacity: !inputVal.trim() || isSending ? 0.5 : 1,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                }, children: _jsx("svg", { width: "15", height: "15", viewBox: "0 0 24 24", fill: "currentColor", children: _jsx("path", { d: "M1.946 9.315c-.522-.174-.527-.455.01-.634l19.087-6.362c.529-.176.832.12.684.638l-5.454 19.086c-.15.529-.455.547-.679.045L12 14l6-8-8 6-6.054-2.685z" }) }) })] })] }))] }));
+};
