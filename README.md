@@ -1,6 +1,6 @@
 # react-concierge-chat 🛡️💬
 
-A modern, production-grade, zero-database live concierge chat widget and multi-session admin desk for React & Next.js applications, featuring platform-agnostic user authentication and automatic role-based UI switching.
+A modern, production-grade, zero-database live concierge chat widget and multi-session admin desk for React & Next.js applications, featuring platform-agnostic user authentication, in-memory Image & PDF attachment sharing, and automatic role-based UI switching.
 
 [![npm version](https://img.shields.io/npm/v/react-concierge-chat.svg)](https://www.npmjs.com/package/react-concierge-chat)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
@@ -9,9 +9,10 @@ A modern, production-grade, zero-database live concierge chat widget and multi-s
 
 ## ✨ Key Features
 
+- 🖼️ **In-Memory Image & PDF Document Sharing**: Files are encoded to Base64 in memory, relayed through ephemeral SSE/polling streams, and rendered/downloaded directly in the browser. **Zero external cloud storage (S3, Cloudinary, Firebase) required**.
 - 🔑 **Platform-Agnostic Authentication**: Seamlessly authenticates users against your existing login endpoints (`authRoute="/api/admin/login, /api/auth/login"`) or directly binds to your existing React auth state (`currentUser={session.user}`).
 - 🔄 **Automatic Role-Based UI Switching**: Automatically renders the **Floating Client Chat Widget** for visitors/users, or morphs into the **Full Multi-Session Live Chat Desk** for authenticated admins and staff.
-- 🚀 **Zero Server Database Overhead**: Messages and chat history live strictly inside the client's and support staff's browser **IndexedDB**. Nothing is stored permanently on your server database.
+- 🚀 **Zero Server Database Overhead**: Messages, attachments, and chat history live strictly inside the client's and support staff's browser **IndexedDB**. Nothing is stored permanently on your server database.
 - ⚡ **Real-time Bidirectional Relay**: Sub-second messaging using Server-Sent Events (SSE) with automatic fallback to polling.
 - 🔔 **Native Push & Audio Alerts**: Fires native browser `Notification` alerts with Web Audio API synthesizer chimes when messages arrive while the window or tab is unfocused.
 - 🏢 **Multi-Session Support Admin Desk**: Full staff interface with session search, unread badge counters, instant canned responses, and chat transcript downloads.
@@ -42,7 +43,7 @@ Create `app/api/live-chat/relay/route.ts`:
 ```typescript
 import { createNextRelayHandler } from 'react-concierge-chat';
 
-// Generates real-time SSE stream and in-memory message relay
+// Generates real-time SSE stream and in-memory message/attachment relay
 export const { GET, POST } = createNextRelayHandler();
 ```
 
@@ -63,7 +64,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         {children}
         
-        {/* Universal Chat & Admin Desk */}
+        {/* Universal Chat & Admin Desk with In-Memory File Sharing */}
         <ConciergeChat 
           brandName="Shield Support"
           primaryColor="#0d7490"
@@ -75,6 +76,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   );
 }
 ```
+
+---
+
+## 📎 In-Memory Image & PDF Sharing
+
+Users and support staff can attach images (PNG, JPG, WEBP, GIF) and PDF documents directly in the chat widget:
+- **Encoding**: Files are encoded client-side into Data URLs in memory.
+- **Relay**: The in-memory relay broadcasts the attachment to participants without writing to any cloud bucket or file server.
+- **Rendering & Download**: 
+  - Images: Displayed with inline image thumbnails and full-size lightbox viewer.
+  - PDFs: Rendered as downloadable document cards with size badges.
 
 ---
 
@@ -146,34 +158,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 | `welcomeMessage` | `string` | *automated greeting* | First message presented to new visitors. |
 | `onAuthSuccess` | `(user: ChatUser) => void` | `undefined` | Callback fired upon successful authentication. |
 | `onSignOut` | `() => void` | `undefined` | Callback fired when the user signs out of chat desk. |
-
----
-
-### Standalone Sub-Components
-
-You can also import and use `<LiveChatWidget />` or `<AdminLiveChat />` independently if you have separate dedicated pages for clients and staff:
-
-```tsx
-import { LiveChatWidget, AdminLiveChat } from 'react-concierge-chat';
-
-// Embedded Client Widget
-<LiveChatWidget brandName="Customer Support" primaryColor="#0d7490" />
-
-// Dedicated Staff Desk Page
-<AdminLiveChat adminName="Alex" primaryColor="#0d7490" />
-```
-
----
-
-## ⚙️ Environment Variables
-
-The package automatically detects support contact emails in this priority order:
-
-```env
-NEXT_PUBLIC_SUPPORT_EMAIL=support@example.com
-SUPPORT_EMAIL=support@example.com
-SMTP_USER=support@example.com
-```
 
 ---
 

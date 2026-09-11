@@ -8,6 +8,14 @@ export interface ChatUser {
   token?: string;
 }
 
+export interface ChatAttachment {
+  name: string;
+  type: 'image' | 'pdf' | 'file';
+  mimeType: string;
+  size: number;
+  data: string; // Base64 data URL encoded in-memory (e.g. data:image/png;base64,... or data:application/pdf;base64,...)
+}
+
 export interface ChatMessage {
   id: string;
   sessionId: string;
@@ -17,6 +25,7 @@ export interface ChatMessage {
   timestamp: number;
   status: 'sending' | 'sent' | 'delivered' | 'read';
   read?: boolean;
+  attachments?: ChatAttachment[];
 }
 
 export interface ChatSession {

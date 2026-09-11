@@ -1,4 +1,4 @@
-import { ChatMessage } from '../types';
+import { ChatAttachment, ChatMessage } from '../types';
 import { dbGetMessages, dbSaveMessage } from './indexedDb';
 import { getOrCreateClientSessionId, getClientName, resolveSupportEmail } from './session';
 import { triggerNativeNotification, requestNotificationPermission } from './notifications';
@@ -72,9 +72,14 @@ export class ChatClient {
     return () => this.listeners.delete(cb);
   }
 
-  public async sendMessage(text: string): Promise<ChatMessage> {
+  public async sendMessage(
+    text: string,
+    attachments?: ChatAttachment[]
+  ): Promise<ChatMessage> {
     const trimmed = text.trim();
-    if (!trimmed) throw new Error('Message cannot be empty');
+    if (!trimmed && (!attachments || attachments.length === 0)) {
+      throw new Error('Message or attachment required');
+    }
 
     const msg: ChatMessage = {
       id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
@@ -85,6 +90,7 @@ export class ChatClient {
       timestamp: Date.now(),
       status: 'sending',
       read: true,
+      attachments: attachments && attachments.length > 0 ? attachments : undefined,
     };
 
     await dbSaveMessage(msg);
@@ -95,7 +101,7 @@ export class ChatClient {
       const res = await fetch(this.apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(msg),
+        body: JSON.stringify({ type: 'message', message: msg }),
       });
 
       if (res.ok) {
@@ -114,7 +120,7 @@ export class ChatClient {
 
     try {
       this.eventSource = new EventSource(
-        `${this.apiUrl}?sessionId=${encodeURIComponent(this.sessionId)}&sse=true`
+        `${this.apiUrl}?sessionId=${encodeURIComponent(this.sessionId)}&mode=sse`
       );
 
       this.eventSource.addEventListener('message', async (e) => {
@@ -126,9 +132,10 @@ export class ChatClient {
             this.notifyListeners(data);
 
             if (document.hidden) {
+              const snippet = data.text || (data.attachments?.length ? `📎 ${data.attachments[0].name}` : 'New message');
               triggerNativeNotification(
                 `New message from ${data.senderName || 'VIP Concierge'}`,
-                data.text
+                snippet
               );
             }
           }
@@ -150,7 +157,7 @@ export class ChatClient {
     this.pollInterval = setInterval(async () => {
       try {
         const res = await fetch(
-          `${this.apiUrl}?sessionId=${encodeURIComponent(this.sessionId)}&after=${this.lastTimestamp}`
+          `${this.apiUrl}?sessionId=${encodeURIComponent(this.sessionId)}&since=${this.lastTimestamp}`
         );
         if (res.ok) {
           const data = await res.json();
@@ -162,9 +169,10 @@ export class ChatClient {
                 this.notifyListeners(msg);
 
                 if (document.hidden) {
+                  const snippet = msg.text || (msg.attachments?.length ? `📎 ${msg.attachments[0].name}` : 'New message');
                   triggerNativeNotification(
                     `New message from ${msg.senderName || 'VIP Concierge'}`,
-                    msg.text
+                    snippet
                   );
                 }
               }

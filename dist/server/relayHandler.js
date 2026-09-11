@@ -11,6 +11,8 @@ function getStore() {
 const SESSION_ID_REGEX = /^[a-zA-Z0-9_-]{6,128}$/;
 const MAX_MESSAGE_LENGTH = 4000;
 const MAX_SESSIONS = 1000;
+const MAX_ATTACHMENTS_PER_MSG = 5;
+const MAX_ATTACHMENT_DATA_SIZE = 7 * 1024 * 1024; // 7MB base64 cap
 function isValidSessionId(id) {
     return id === 'all' || SESSION_ID_REGEX.test(id);
 }
@@ -19,9 +21,35 @@ function sanitizeText(str) {
         return '';
     return str.slice(0, MAX_MESSAGE_LENGTH).trim();
 }
+function sanitizeAttachments(attachments) {
+    if (!Array.isArray(attachments) || attachments.length === 0) {
+        return undefined;
+    }
+    const sanitized = [];
+    for (const att of attachments.slice(0, MAX_ATTACHMENTS_PER_MSG)) {
+        if (!att || typeof att.data !== 'string' || !att.data.startsWith('data:')) {
+            continue;
+        }
+        if (att.data.length > MAX_ATTACHMENT_DATA_SIZE) {
+            continue;
+        }
+        const type = att.type === 'pdf' ? 'pdf' : att.type === 'image' ? 'image' : 'file';
+        const name = String(att.name || 'attachment').slice(0, 120);
+        const mimeType = String(att.mimeType || (type === 'pdf' ? 'application/pdf' : 'image/png')).slice(0, 50);
+        const size = typeof att.size === 'number' ? att.size : att.data.length;
+        sanitized.push({
+            name,
+            type,
+            mimeType,
+            size,
+            data: att.data,
+        });
+    }
+    return sanitized.length > 0 ? sanitized : undefined;
+}
 /**
  * Production-grade HTTP & SSE handlers for Next.js App Router (route.ts).
- * Includes memory exhaustion defenses, input sanitization, and session isolation.
+ * Relays in-memory text, base64 images, and PDFs with zero server database persistence.
  *
  * Example usage in `app/api/live-chat/relay/route.ts`:
  * ```ts
@@ -122,7 +150,6 @@ export function createNextRelayHandler(options) {
                 if (!isValidSessionId(session.sessionId)) {
                     return Response.json({ success: false, error: 'Invalid session ID' }, { status: 400, headers: corsHeaders });
                 }
-                // Enforce max active sessions to prevent memory leaks
                 if (store.sessions.size > MAX_SESSIONS) {
                     const oldestSessionKey = Array.from(store.sessions.keys())[0];
                     if (oldestSessionKey) {
@@ -150,12 +177,14 @@ export function createNextRelayHandler(options) {
                     return Response.json({ success: false, error: 'Invalid session ID' }, { status: 400, headers: corsHeaders });
                 }
                 const sanitizedText = sanitizeText(message.text || '');
-                if (!sanitizedText) {
-                    return Response.json({ success: false, error: 'Message text cannot be empty' }, { status: 400, headers: corsHeaders });
+                const sanitizedAttachments = sanitizeAttachments(message.attachments);
+                if (!sanitizedText && !sanitizedAttachments) {
+                    return Response.json({ success: false, error: 'Message must have text or attachment' }, { status: 400, headers: corsHeaders });
                 }
                 const safeSender = message.sender === 'agent' || message.sender === 'system'
                     ? message.sender
                     : 'client';
+                const snippet = sanitizedText || (sanitizedAttachments?.length ? `📎 ${sanitizedAttachments[0].name}` : 'Sent file');
                 const msg = {
                     id: String(message.id || `msg_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`),
                     sessionId: sId,
@@ -165,6 +194,7 @@ export function createNextRelayHandler(options) {
                     timestamp: typeof message.timestamp === 'number' ? message.timestamp : Date.now(),
                     status: 'delivered',
                     read: safeSender === 'agent',
+                    attachments: sanitizedAttachments,
                 };
                 if (!store.messages.has(sId)) {
                     store.messages.set(sId, []);
@@ -183,7 +213,7 @@ export function createNextRelayHandler(options) {
                     unreadCount: msg.sender === 'client'
                         ? (existingSession?.unreadCount || 0) + 1
                         : 0,
-                    lastMessage: msg.text.slice(0, 80),
+                    lastMessage: snippet.slice(0, 80),
                     lastUpdated: Date.now(),
                     status: 'active',
                 };

@@ -1,4 +1,4 @@
-import { ChatMessage } from '../types';
+import { ChatAttachment, ChatMessage } from '../types';
 export type OnMessageCallback = (message: ChatMessage) => void;
 export declare class ChatClient {
     private sessionId;
@@ -21,7 +21,7 @@ export declare class ChatClient {
     getSupportEmail(): string;
     init(): Promise<ChatMessage[]>;
     onMessage(cb: OnMessageCallback): () => void;
-    sendMessage(text: string): Promise<ChatMessage>;
+    sendMessage(text: string, attachments?: ChatAttachment[]): Promise<ChatMessage>;
     private startRealtimeStream;
     private startPolling;
     private notifyListeners;

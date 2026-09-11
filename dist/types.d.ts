@@ -6,6 +6,13 @@ export interface ChatUser {
     role: ChatUserRole;
     token?: string;
 }
+export interface ChatAttachment {
+    name: string;
+    type: 'image' | 'pdf' | 'file';
+    mimeType: string;
+    size: number;
+    data: string;
+}
 export interface ChatMessage {
     id: string;
     sessionId: string;
@@ -15,6 +22,7 @@ export interface ChatMessage {
     timestamp: number;
     status: 'sending' | 'sent' | 'delivered' | 'read';
     read?: boolean;
+    attachments?: ChatAttachment[];
 }
 export interface ChatSession {
     sessionId: string;

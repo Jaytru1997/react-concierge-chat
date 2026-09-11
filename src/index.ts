@@ -11,6 +11,13 @@ export {
   resolveSupportEmail,
 } from './lib/session';
 export {
+  readFileAsBase64,
+  validateFile,
+  downloadAttachment,
+  formatBytes,
+  MAX_ATTACHMENT_SIZE,
+} from './lib/fileHelper';
+export {
   authenticateWithRoutes,
   parseAuthRoutes,
   getStoredChatUser,

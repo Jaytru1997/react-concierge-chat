@@ -5,6 +5,7 @@ export { AdminLiveChat } from './components/AdminLiveChat';
 export { StaffLoginModal } from './components/StaffLoginModal';
 export { ChatClient } from './lib/chatClient';
 export { getOrCreateClientSessionId, getClientName, setClientName, resolveSupportEmail, } from './lib/session';
+export { readFileAsBase64, validateFile, downloadAttachment, formatBytes, MAX_ATTACHMENT_SIZE, } from './lib/fileHelper';
 export { authenticateWithRoutes, parseAuthRoutes, getStoredChatUser, storeChatUser, clearStoredChatUser, checkSessionRoute, } from './lib/auth';
 export { getChatDB, dbSaveMessage, dbGetMessages, dbGetAllSessions, dbSaveSession, dbMarkSessionAsRead, dbDeleteSession, } from './lib/indexedDb';
 export { requestNotificationPermission, playNotificationSound, triggerNativeNotification, } from './lib/notifications';

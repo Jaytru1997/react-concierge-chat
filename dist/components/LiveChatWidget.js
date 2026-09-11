@@ -3,14 +3,19 @@ import { useState, useEffect, useRef } from 'react';
 import { ChatClient } from '../lib/chatClient';
 import { dbMarkSessionAsRead } from '../lib/indexedDb';
 import { requestNotificationPermission } from '../lib/notifications';
+import { readFileAsBase64, validateFile, downloadAttachment, formatBytes } from '../lib/fileHelper';
 export const LiveChatWidget = ({ supportEmail, brandName = 'Concierge Desk', primaryColor = '#0d7490', apiUrl = '/api/live-chat/relay', position = 'bottom-right', welcomeMessage, currentUser, onStaffLoginClick, onSignOut, }) => {
     const [modalOpen, setModalOpen] = useState(false);
     const [messages, setMessages] = useState([]);
     const [inputVal, setInputVal] = useState('');
     const [unreadCount, setUnreadCount] = useState(0);
     const [isSending, setIsSending] = useState(false);
+    const [pendingAttachments, setPendingAttachments] = useState([]);
+    const [fileError, setFileError] = useState(null);
+    const [previewImage, setPreviewImage] = useState(null);
     const clientRef = useRef(null);
     const messagesEndRef = useRef(null);
+    const fileInputRef = useRef(null);
     useEffect(() => {
         const client = new ChatClient({ supportEmail, apiUrl, welcomeMessage });
         clientRef.current = client;
@@ -47,7 +52,7 @@ export const LiveChatWidget = ({ supportEmail, brandName = 'Concierge Desk', pri
         if (modalOpen) {
             messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
         }
-    }, [messages, modalOpen]);
+    }, [messages, modalOpen, pendingAttachments]);
     const handleToggleModal = () => {
         const nextState = !modalOpen;
         setModalOpen(nextState);
@@ -59,15 +64,48 @@ export const LiveChatWidget = ({ supportEmail, brandName = 'Concierge Desk', pri
             }
         }
     };
+    const handleFileSelect = async (e) => {
+        const files = e.target.files;
+        if (!files || files.length === 0)
+            return;
+        setFileError(null);
+        const newAttachments = [];
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const validation = validateFile(file);
+            if (!validation.valid) {
+                setFileError(validation.error || 'Invalid file');
+                continue;
+            }
+            try {
+                const encoded = await readFileAsBase64(file);
+                newAttachments.push(encoded);
+            }
+            catch {
+                setFileError('Failed to encode attachment');
+            }
+        }
+        if (newAttachments.length > 0) {
+            setPendingAttachments((prev) => [...prev, ...newAttachments]);
+        }
+        if (fileInputRef.current)
+            fileInputRef.current.value = '';
+    };
+    const handleRemovePendingAttachment = (index) => {
+        setPendingAttachments((prev) => prev.filter((_, i) => i !== index));
+    };
     const handleSendMessage = async (e) => {
         e.preventDefault();
-        if (!inputVal.trim() || !clientRef.current || isSending)
+        if ((!inputVal.trim() && pendingAttachments.length === 0) || !clientRef.current || isSending)
             return;
         const textToSend = inputVal.trim();
+        const attachmentsToSend = [...pendingAttachments];
         setInputVal('');
+        setPendingAttachments([]);
+        setFileError(null);
         setIsSending(true);
         try {
-            await clientRef.current.sendMessage(textToSend);
+            await clientRef.current.sendMessage(textToSend, attachmentsToSend);
         }
         catch {
         }
@@ -112,10 +150,10 @@ export const LiveChatWidget = ({ supportEmail, brandName = 'Concierge Desk', pri
                     position: 'fixed',
                     bottom: '24px',
                     [isLeft ? 'left' : 'right']: '24px',
-                    width: '380px',
+                    width: '390px',
                     maxWidth: 'calc(100vw - 32px)',
-                    height: '530px',
-                    maxHeight: 'calc(100vh - 100px)',
+                    height: '560px',
+                    maxHeight: 'calc(100vh - 80px)',
                     backgroundColor: '#0f172a',
                     borderRadius: '16px',
                     boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
@@ -189,7 +227,7 @@ export const LiveChatWidget = ({ supportEmail, brandName = 'Concierge Desk', pri
                             backgroundColor: '#090d16',
                             display: 'flex',
                             flexDirection: 'column',
-                            gap: '10px',
+                            gap: '12px',
                             fontSize: '13.5px',
                         }, children: [messages.map((m) => {
                                 const isClient = m.sender === 'client';
@@ -210,7 +248,49 @@ export const LiveChatWidget = ({ supportEmail, brandName = 'Concierge Desk', pri
                                             boxShadow: '0 2px 6px rgba(0, 0, 0, 0.25)',
                                             lineHeight: '1.45',
                                             wordBreak: 'break-word',
-                                        }, children: [!isClient && m.senderName && (_jsx("div", { style: { fontSize: '10px', fontWeight: 'bold', color: '#38bdf8', marginBottom: '2px', textTransform: 'uppercase' }, children: m.senderName })), _jsx("div", { children: m.text }), _jsxs("div", { style: {
+                                        }, children: [!isClient && m.senderName && (_jsx("div", { style: { fontSize: '10px', fontWeight: 'bold', color: '#38bdf8', marginBottom: '3px', textTransform: 'uppercase' }, children: m.senderName })), m.text && _jsx("div", { children: m.text }), m.attachments && m.attachments.length > 0 && (_jsx("div", { style: { marginTop: m.text ? '8px' : '0', display: 'flex', flexDirection: 'column', gap: '6px' }, children: m.attachments.map((att, idx) => (_jsx("div", { children: att.type === 'image' ? (_jsxs("div", { onClick: () => setPreviewImage(att.data), style: {
+                                                            borderRadius: '8px',
+                                                            overflow: 'hidden',
+                                                            cursor: 'pointer',
+                                                            border: '1px solid rgba(255, 255, 255, 0.15)',
+                                                            backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                                                            maxWidth: '240px',
+                                                        }, children: [_jsx("img", { src: att.data, alt: att.name, style: {
+                                                                    width: '100%',
+                                                                    height: 'auto',
+                                                                    maxHeight: '180px',
+                                                                    objectFit: 'cover',
+                                                                    display: 'block',
+                                                                } }), _jsxs("div", { style: {
+                                                                    fontSize: '11px',
+                                                                    padding: '4px 8px',
+                                                                    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                                                                    color: '#e2e8f0',
+                                                                    display: 'flex',
+                                                                    justifyContent: 'space-between',
+                                                                }, children: [_jsx("span", { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '140px' }, children: att.name }), _jsx("span", { children: formatBytes(att.size) })] })] })) : (_jsxs("div", { onClick: () => downloadAttachment(att), style: {
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '8px',
+                                                            padding: '8px 10px',
+                                                            backgroundColor: 'rgba(0, 0, 0, 0.25)',
+                                                            border: '1px solid rgba(255, 255, 255, 0.15)',
+                                                            borderRadius: '8px',
+                                                            cursor: 'pointer',
+                                                            transition: 'background 0.2s',
+                                                        }, children: [_jsx("div", { style: {
+                                                                    width: '28px',
+                                                                    height: '28px',
+                                                                    borderRadius: '6px',
+                                                                    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                                                                    color: '#ef4444',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center',
+                                                                    fontWeight: 'bold',
+                                                                    fontSize: '10px',
+                                                                    flexShrink: 0,
+                                                                }, children: "PDF" }), _jsxs("div", { style: { overflow: 'hidden', flex: 1 }, children: [_jsx("div", { style: { fontSize: '12px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }, children: att.name }), _jsxs("div", { style: { fontSize: '10px', opacity: 0.75 }, children: [formatBytes(att.size), " \u2022 Click to download"] })] }), _jsxs("svg", { width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", children: [_jsx("path", { d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" }), _jsx("polyline", { points: "7 10 12 15 17 10" }), _jsx("line", { x1: "12", y1: "15", x2: "12", y2: "3" })] })] })) }, idx))) })), _jsxs("div", { style: {
                                                     fontSize: '10px',
                                                     marginTop: '4px',
                                                     display: 'flex',
@@ -219,14 +299,55 @@ export const LiveChatWidget = ({ supportEmail, brandName = 'Concierge Desk', pri
                                                     justifyContent: isClient ? 'flex-end' : 'flex-start',
                                                     color: isClient ? 'rgba(255, 255, 255, 0.7)' : '#94a3b8',
                                                 }, children: [_jsx("span", { children: timeStr }), isClient && (_jsx("span", { children: m.status === 'sending' ? '⏳' : m.status === 'read' ? '✓✓' : '✓' }))] })] }) }, m.id));
-                            }), _jsx("div", { ref: messagesEndRef })] }), _jsxs("form", { onSubmit: handleSendMessage, style: {
+                            }), _jsx("div", { ref: messagesEndRef })] }), pendingAttachments.length > 0 && (_jsx("div", { style: {
+                            padding: '8px 12px',
+                            backgroundColor: '#1e293b',
+                            borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                            display: 'flex',
+                            gap: '8px',
+                            overflowX: 'auto',
+                        }, children: pendingAttachments.map((att, idx) => (_jsxs("div", { style: {
+                                position: 'relative',
+                                padding: '4px 8px',
+                                backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                                borderRadius: '6px',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                fontSize: '11px',
+                                color: '#e2e8f0',
+                            }, children: [_jsx("span", { children: att.type === 'pdf' ? '📄' : '🖼️' }), _jsx("span", { style: { maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }, children: att.name }), _jsx("button", { type: "button", onClick: () => handleRemovePendingAttachment(idx), style: {
+                                        background: 'none',
+                                        border: 'none',
+                                        color: '#f87171',
+                                        cursor: 'pointer',
+                                        padding: '0 2px',
+                                        fontSize: '13px',
+                                    }, children: "\u00D7" })] }, idx))) })), fileError && (_jsx("div", { style: {
+                            padding: '6px 12px',
+                            backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                            color: '#f87171',
+                            fontSize: '11px',
+                            borderTop: '1px solid rgba(239, 68, 68, 0.3)',
+                        }, children: fileError })), _jsxs("form", { onSubmit: handleSendMessage, style: {
                             padding: '12px 14px',
                             backgroundColor: '#0f172a',
                             borderTop: '1px solid rgba(255, 255, 255, 0.08)',
                             display: 'flex',
                             gap: '8px',
                             alignItems: 'center',
-                        }, children: [_jsx("input", { type: "text", placeholder: "Type your message...", value: inputVal, onChange: (e) => setInputVal(e.target.value), disabled: isSending, style: {
+                        }, children: [_jsx("input", { type: "file", ref: fileInputRef, onChange: handleFileSelect, accept: "image/png,image/jpeg,image/webp,image/gif,application/pdf", style: { display: 'none' }, multiple: true }), _jsx("button", { type: "button", onClick: () => fileInputRef.current?.click(), title: "Attach image or PDF (strictly in-memory)", style: {
+                                    background: 'transparent',
+                                    border: 'none',
+                                    color: '#94a3b8',
+                                    cursor: 'pointer',
+                                    padding: '6px',
+                                    borderRadius: '6px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                }, children: _jsx("svg", { width: "18", height: "18", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: _jsx("path", { d: "M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" }) }) }), _jsx("input", { type: "text", placeholder: "Type a message or attach a file...", value: inputVal, onChange: (e) => setInputVal(e.target.value), disabled: isSending, style: {
                                     flex: 1,
                                     padding: '8px 12px',
                                     borderRadius: '8px',
@@ -235,16 +356,47 @@ export const LiveChatWidget = ({ supportEmail, brandName = 'Concierge Desk', pri
                                     color: '#f8fafc',
                                     fontSize: '13px',
                                     outline: 'none',
-                                } }), _jsx("button", { type: "submit", disabled: !inputVal.trim() || isSending, style: {
+                                } }), _jsx("button", { type: "submit", disabled: (!inputVal.trim() && pendingAttachments.length === 0) || isSending, style: {
                                     backgroundColor: primaryColor,
                                     color: '#FFFFFF',
                                     border: 'none',
                                     borderRadius: '8px',
                                     padding: '8px 14px',
-                                    cursor: !inputVal.trim() || isSending ? 'not-allowed' : 'pointer',
-                                    opacity: !inputVal.trim() || isSending ? 0.5 : 1,
+                                    cursor: (!inputVal.trim() && pendingAttachments.length === 0) || isSending ? 'not-allowed' : 'pointer',
+                                    opacity: (!inputVal.trim() && pendingAttachments.length === 0) || isSending ? 0.5 : 1,
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                }, children: _jsx("svg", { width: "15", height: "15", viewBox: "0 0 24 24", fill: "currentColor", children: _jsx("path", { d: "M1.946 9.315c-.522-.174-.527-.455.01-.634l19.087-6.362c.529-.176.832.12.684.638l-5.454 19.086c-.15.529-.455.547-.679.045L12 14l6-8-8 6-6.054-2.685z" }) }) })] })] }))] }));
+                                }, children: _jsx("svg", { width: "15", height: "15", viewBox: "0 0 24 24", fill: "currentColor", children: _jsx("path", { d: "M1.946 9.315c-.522-.174-.527-.455.01-.634l19.087-6.362c.529-.176.832.12.684.638l-5.454 19.086c-.15.529-.455.547-.679.045L12 14l6-8-8 6-6.054-2.685z" }) }) })] })] })), previewImage && (_jsx("div", { style: {
+                    position: 'fixed',
+                    inset: 0,
+                    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                    zIndex: 1000000,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '20px',
+                }, onClick: () => setPreviewImage(null), children: _jsxs("div", { style: { position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }, children: [_jsx("img", { src: previewImage, alt: "Preview", style: {
+                                maxWidth: '100%',
+                                maxHeight: '85vh',
+                                objectFit: 'contain',
+                                borderRadius: '12px',
+                                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
+                            } }), _jsx("button", { onClick: () => setPreviewImage(null), style: {
+                                position: 'absolute',
+                                top: '-12px',
+                                right: '-12px',
+                                backgroundColor: '#ef4444',
+                                color: '#ffffff',
+                                border: 'none',
+                                borderRadius: '50%',
+                                width: '32px',
+                                height: '32px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontWeight: 'bold',
+                                fontSize: '16px',
+                            }, children: "\u00D7" })] }) }))] }));
 };

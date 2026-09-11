@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChatMessage, ChatSession, AdminLiveChatProps } from '../types';
+import { ChatAttachment, ChatMessage, ChatSession, AdminLiveChatProps } from '../types';
 import {
   dbGetAllSessions,
   dbGetMessages,
@@ -9,6 +9,7 @@ import {
   dbDeleteSession,
 } from '../lib/indexedDb';
 import { triggerNativeNotification, requestNotificationPermission } from '../lib/notifications';
+import { readFileAsBase64, validateFile, downloadAttachment, formatBytes } from '../lib/fileHelper';
 
 export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
   adminName = 'Staff Support',
@@ -24,10 +25,14 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
   const [replyText, setReplyText] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [pendingAttachments, setPendingAttachments] = useState<ChatAttachment[]>([]);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const lastAdminTimestamp = useRef<number>(0);
   const eventSourceRef = useRef<EventSource | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const loadSessions = async () => {
     const all = await dbGetAllSessions();
@@ -54,7 +59,7 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, pendingAttachments]);
 
   useEffect(() => {
     requestNotificationPermission();
@@ -81,7 +86,7 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
       .catch(() => {});
 
     try {
-      const es = new EventSource(`${apiUrl}?view=admin&sse=true`);
+      const es = new EventSource(`${apiUrl}?sessionId=all&mode=sse`);
       eventSourceRef.current = es;
 
       es.addEventListener('message', async (e) => {
@@ -95,13 +100,14 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
               const existingIdx = prev.findIndex((s) => s.sessionId === msg.sessionId);
               const isCurrentSession = selectedSessionId === msg.sessionId;
               const unreadDelta = msg.sender === 'client' && !isCurrentSession ? 1 : 0;
+              const snippet = msg.text || (msg.attachments?.length ? `📎 ${msg.attachments[0].name}` : 'File sent');
 
               if (existingIdx >= 0) {
                 const updated = [...prev];
                 updated[existingIdx] = {
                   ...updated[existingIdx],
                   lastUpdated: msg.timestamp,
-                  lastMessage: msg.text,
+                  lastMessage: snippet,
                   unreadCount: updated[existingIdx].unreadCount + unreadDelta,
                 };
                 return updated.sort((a, b) => b.lastUpdated - a.lastUpdated);
@@ -112,7 +118,7 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
                     clientName: msg.senderName || 'Client',
                     startedAt: msg.timestamp,
                     lastUpdated: msg.timestamp,
-                    lastMessage: msg.text,
+                    lastMessage: snippet,
                     unreadCount: unreadDelta,
                     status: 'active',
                   },
@@ -130,9 +136,10 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
 
             if (msg.sender === 'client') {
               if (soundEnabled || document.hidden) {
+                const snippet = msg.text || (msg.attachments?.length ? `📎 ${msg.attachments[0].name}` : 'New message');
                 triggerNativeNotification(
                   `Live Chat from ${msg.senderName || 'Client'}`,
-                  msg.text
+                  snippet
                 );
               }
             }
@@ -146,12 +153,44 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
     };
   }, [selectedSessionId, soundEnabled, apiUrl]);
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setFileError(null);
+    const newAttachments: ChatAttachment[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const validation = validateFile(file);
+      if (!validation.valid) {
+        setFileError(validation.error || 'Invalid file');
+        continue;
+      }
+
+      try {
+        const encoded = await readFileAsBase64(file);
+        newAttachments.push(encoded);
+      } catch {
+        setFileError('Failed to encode attachment');
+      }
+    }
+
+    if (newAttachments.length > 0) {
+      setPendingAttachments((prev) => [...prev, ...newAttachments]);
+    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const handleSendReply = async (e?: React.FormEvent, customText?: string) => {
     if (e) e.preventDefault();
     const text = (customText || replyText).trim();
-    if (!text || !selectedSessionId) return;
+    if ((!text && pendingAttachments.length === 0) || !selectedSessionId) return;
 
     setReplyText('');
+    const attachmentsToSend = [...pendingAttachments];
+    setPendingAttachments([]);
+    setFileError(null);
 
     const agentMsg: ChatMessage = {
       id: `agent_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -162,6 +201,7 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
       timestamp: Date.now(),
       status: 'delivered',
       read: true,
+      attachments: attachmentsToSend.length > 0 ? attachmentsToSend : undefined,
     };
 
     await dbSaveMessage(agentMsg);
@@ -190,7 +230,10 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
     if (!active) return;
     const header = `CHAT TRANSCRIPT\nBrand: ${brandName}\nSession ID: ${active.sessionId}\nClient: ${active.clientName}\nDate: ${new Date().toLocaleString()}\n----------------------------------------\n\n`;
     const body = messages
-      .map((m) => `[${new Date(m.timestamp).toLocaleTimeString()}] ${m.sender === 'agent' ? m.senderName || 'Staff' : m.senderName || 'Client'}: ${m.text}`)
+      .map((m) => {
+        const attInfo = m.attachments?.length ? ` [Attachments: ${m.attachments.map((a) => a.name).join(', ')}]` : '';
+        return `[${new Date(m.timestamp).toLocaleTimeString()}] ${m.sender === 'agent' ? m.senderName || 'Staff' : m.senderName || 'Client'}: ${m.text || ''}${attInfo}`;
+      })
       .join('\n');
     const blob = new Blob([header + body], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -205,6 +248,7 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
     '👋 Hello! How may our support team assist you today?',
     '🔍 We are actively reviewing your inquiry. Please allow us a moment.',
     '✅ Your request has been successfully processed.',
+    '📄 Please review the attached document.',
     '📧 We have dispatched a confirmation summary to your registered email.',
   ];
 
@@ -504,7 +548,105 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
                       <div style={{ fontSize: '10px', opacity: 0.7, marginBottom: '2px', textTransform: 'uppercase' }}>
                         {isAgent ? m.senderName || adminName : m.senderName || 'Visitor'}
                       </div>
-                      <div>{m.text}</div>
+
+                      {m.text && <div>{m.text}</div>}
+
+                      {/* In-Memory Attachment Rendering */}
+                      {m.attachments && m.attachments.length > 0 && (
+                        <div style={{ marginTop: m.text ? '8px' : '0', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          {m.attachments.map((att, idx) => (
+                            <div key={idx}>
+                              {att.type === 'image' ? (
+                                <div
+                                  onClick={() => setPreviewImage(att.data)}
+                                  style={{
+                                    borderRadius: '8px',
+                                    overflow: 'hidden',
+                                    cursor: 'pointer',
+                                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                                    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                                    maxWidth: '260px',
+                                  }}
+                                >
+                                  <img
+                                    src={att.data}
+                                    alt={att.name}
+                                    style={{
+                                      width: '100%',
+                                      height: 'auto',
+                                      maxHeight: '180px',
+                                      objectFit: 'cover',
+                                      display: 'block',
+                                    }}
+                                  />
+                                  <div
+                                    style={{
+                                      fontSize: '11px',
+                                      padding: '4px 8px',
+                                      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                                      color: '#e2e8f0',
+                                      display: 'flex',
+                                      justifyContent: 'space-between',
+                                    }}
+                                  >
+                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '160px' }}>
+                                      {att.name}
+                                    </span>
+                                    <span>{formatBytes(att.size)}</span>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div
+                                  onClick={() => downloadAttachment(att)}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    padding: '8px 10px',
+                                    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+                                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
+                                    transition: 'background 0.2s',
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      width: '28px',
+                                      height: '28px',
+                                      borderRadius: '6px',
+                                      backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                                      color: '#ef4444',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontWeight: 'bold',
+                                      fontSize: '10px',
+                                      flexShrink: 0,
+                                    }}
+                                  >
+                                    PDF
+                                  </div>
+                                  <div style={{ overflow: 'hidden', flex: 1 }}>
+                                    <div style={{ fontSize: '12px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                      {att.name}
+                                    </div>
+                                    <div style={{ fontSize: '10px', opacity: 0.75 }}>
+                                      {formatBytes(att.size)} • Click to download
+                                    </div>
+                                  </div>
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                    <polyline points="7 10 12 15 17 10" />
+                                    <line x1="12" y1="15" x2="12" y2="3" />
+                                  </svg>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
                       <div style={{ fontSize: '10px', opacity: 0.7, textAlign: 'right', marginTop: '4px' }}>
                         {timeStr}
                       </div>
@@ -515,7 +657,7 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Quick Canned Responses */}
+            {/* Canned Quick Replies */}
             <div
               style={{
                 padding: '8px 12px',
@@ -547,7 +689,71 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
               ))}
             </div>
 
-            {/* Reply Composer */}
+            {/* Pending Attachments Tray */}
+            {pendingAttachments.length > 0 && (
+              <div
+                style={{
+                  padding: '6px 16px',
+                  backgroundColor: '#0f172a',
+                  borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                  display: 'flex',
+                  gap: '8px',
+                  overflowX: 'auto',
+                }}
+              >
+                {pendingAttachments.map((att, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      padding: '4px 8px',
+                      backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                      borderRadius: '6px',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontSize: '11px',
+                      color: '#e2e8f0',
+                    }}
+                  >
+                    <span>{att.type === 'pdf' ? '📄' : '🖼️'}</span>
+                    <span style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {att.name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setPendingAttachments((p) => p.filter((_, i) => i !== idx))}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#f87171',
+                        cursor: 'pointer',
+                        padding: '0 2px',
+                        fontSize: '13px',
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* File Error Alert */}
+            {fileError && (
+              <div
+                style={{
+                  padding: '4px 16px',
+                  backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                  color: '#f87171',
+                  fontSize: '11px',
+                }}
+              >
+                {fileError}
+              </div>
+            )}
+
+            {/* Reply Composer with Paperclip Attachment Trigger */}
             <form
               onSubmit={(e) => handleSendReply(e)}
               style={{
@@ -556,8 +762,40 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
                 backgroundColor: '#0B132B',
                 display: 'flex',
                 gap: '8px',
+                alignItems: 'center',
               }}
             >
+              {/* Hidden File Input */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileSelect}
+                accept="image/png,image/jpeg,image/webp,image/gif,application/pdf"
+                style={{ display: 'none' }}
+                multiple
+              />
+
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                title="Attach image or PDF (strictly in-memory)"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  padding: '8px',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                </svg>
+              </button>
+
               <input
                 type="text"
                 placeholder={`Reply as ${adminName}...`}
@@ -576,7 +814,7 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
               />
               <button
                 type="submit"
-                disabled={!replyText.trim()}
+                disabled={!replyText.trim() && pendingAttachments.length === 0}
                 style={{
                   backgroundColor: primaryColor,
                   color: '#FFFFFF',
@@ -585,8 +823,8 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
                   padding: '10px 18px',
                   fontWeight: 'bold',
                   fontSize: '13px',
-                  cursor: !replyText.trim() ? 'not-allowed' : 'pointer',
-                  opacity: !replyText.trim() ? 0.5 : 1,
+                  cursor: (!replyText.trim() && pendingAttachments.length === 0) ? 'not-allowed' : 'pointer',
+                  opacity: (!replyText.trim() && pendingAttachments.length === 0) ? 0.5 : 1,
                 }}
               >
                 Send Reply
@@ -599,6 +837,59 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
           </div>
         )}
       </div>
+
+      {/* Fullscreen Image Lightbox Modal */}
+      {previewImage && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.9)',
+            zIndex: 1000000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+          }}
+          onClick={() => setPreviewImage(null)}
+        >
+          <div style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }}>
+            <img
+              src={previewImage}
+              alt="Preview"
+              style={{
+                maxWidth: '100%',
+                maxHeight: '85vh',
+                objectFit: 'contain',
+                borderRadius: '12px',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
+              }}
+            />
+            <button
+              onClick={() => setPreviewImage(null)}
+              style={{
+                position: 'absolute',
+                top: '-12px',
+                right: '-12px',
+                backgroundColor: '#ef4444',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 'bold',
+                fontSize: '16px',
+              }}
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

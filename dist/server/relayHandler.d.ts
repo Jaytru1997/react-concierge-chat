@@ -9,7 +9,7 @@ declare global {
 }
 /**
  * Production-grade HTTP & SSE handlers for Next.js App Router (route.ts).
- * Includes memory exhaustion defenses, input sanitization, and session isolation.
+ * Relays in-memory text, base64 images, and PDFs with zero server database persistence.
  *
  * Example usage in `app/api/live-chat/relay/route.ts`:
  * ```ts
