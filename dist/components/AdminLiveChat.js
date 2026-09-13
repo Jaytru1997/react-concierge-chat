@@ -221,6 +221,8 @@ export const AdminLiveChat = ({ adminName = 'Staff Support', apiUrl = '/api/live
     const active = sessions.find((s) => s.sessionId === selectedSessionId);
     return (_jsxs("div", { style: {
             display: 'flex',
+            width: '100%',
+            maxWidth: '100%',
             height: '650px',
             maxHeight: 'calc(100vh - 100px)',
             backgroundColor: '#0F172A',
@@ -230,12 +232,17 @@ export const AdminLiveChat = ({ adminName = 'Staff Support', apiUrl = '/api/live
             border: '1px solid rgba(255, 255, 255, 0.1)',
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
             fontFamily: 'system-ui, -apple-system, sans-serif',
+            boxSizing: 'border-box',
         }, children: [_jsxs("div", { style: {
-                    width: '320px',
+                    width: '300px',
+                    minWidth: '260px',
+                    maxWidth: '320px',
+                    flexShrink: 0,
                     borderRight: '1px solid rgba(255, 255, 255, 0.08)',
                     backgroundColor: '#0B132B',
                     display: 'flex',
                     flexDirection: 'column',
+                    overflow: 'hidden',
                 }, children: [_jsxs("div", { style: { padding: '16px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }, children: [_jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }, children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: '8px' }, children: [_jsx("span", { style: { fontWeight: 600, fontSize: '15px', color: '#FFFFFF' }, children: "Live Sessions" }), _jsx("span", { style: {
                                                     backgroundColor: primaryColor,
                                                     color: '#FFFFFF',
@@ -301,14 +308,23 @@ export const AdminLiveChat = ({ adminName = 'Staff Support', apiUrl = '/api/live
                                                     padding: '2px 6px',
                                                     fontWeight: 'bold',
                                                 }, children: s.unreadCount }))] })] }, s.sessionId));
-                        })) })] }), _jsx("div", { style: { flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#090E17' }, children: active ? (_jsxs(_Fragment, { children: [_jsxs("div", { style: {
+                        })) })] }), _jsx("div", { style: {
+                    flex: 1,
+                    minWidth: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    backgroundColor: '#090E17',
+                    overflow: 'hidden',
+                }, children: active ? (_jsxs(_Fragment, { children: [_jsxs("div", { style: {
                                 padding: '14px 20px',
                                 borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
                                 backgroundColor: '#0B132B',
                                 display: 'flex',
                                 justifyContent: 'space-between',
                                 alignItems: 'center',
-                            }, children: [_jsxs("div", { children: [_jsx("div", { style: { fontWeight: 600, fontSize: '14px', color: '#FFFFFF' }, children: active.clientName }), _jsxs("div", { style: { fontSize: '11px', color: '#64748B' }, children: ["Session: ", _jsx("span", { style: { color: primaryColor }, children: active.sessionId })] })] }), _jsxs("div", { style: { display: 'flex', gap: '8px' }, children: [_jsx("button", { type: "button", onClick: handleDownloadTranscript, title: "Export Transcript", style: {
+                                flexShrink: 0,
+                                minWidth: 0,
+                            }, children: [_jsxs("div", { style: { minWidth: 0, overflow: 'hidden' }, children: [_jsx("div", { style: { fontWeight: 600, fontSize: '14px', color: '#FFFFFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }, children: active.clientName }), _jsxs("div", { style: { fontSize: '11px', color: '#64748B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }, children: ["Session: ", _jsx("span", { style: { color: primaryColor }, children: active.sessionId })] })] }), _jsxs("div", { style: { display: 'flex', gap: '8px', flexShrink: 0 }, children: [_jsx("button", { type: "button", onClick: handleDownloadTranscript, title: "Export Transcript", style: {
                                                 backgroundColor: 'transparent',
                                                 border: '1px solid rgba(255, 255, 255, 0.15)',
                                                 color: '#94a3b8',
@@ -334,11 +350,15 @@ export const AdminLiveChat = ({ adminName = 'Staff Support', apiUrl = '/api/live
                                                 cursor: 'pointer',
                                             }, children: "Delete" })] })] }), _jsxs("div", { style: {
                                 flex: 1,
-                                padding: '16px',
+                                minHeight: 0,
+                                padding: '16px 20px',
                                 overflowY: 'auto',
+                                overflowX: 'hidden',
                                 display: 'flex',
                                 flexDirection: 'column',
                                 gap: '12px',
+                                width: '100%',
+                                boxSizing: 'border-box',
                             }, children: [messages.map((m) => {
                                     const isAgent = m.sender === 'agent';
                                     const timeStr = new Date(m.timestamp).toLocaleTimeString([], {
@@ -347,9 +367,12 @@ export const AdminLiveChat = ({ adminName = 'Staff Support', apiUrl = '/api/live
                                     });
                                     return (_jsx("div", { style: {
                                             display: 'flex',
+                                            width: '100%',
                                             justifyContent: isAgent ? 'flex-end' : 'flex-start',
+                                            boxSizing: 'border-box',
                                         }, children: _jsxs("div", { style: {
                                                 maxWidth: '75%',
+                                                minWidth: '120px',
                                                 padding: '10px 14px',
                                                 borderRadius: '12px',
                                                 backgroundColor: isAgent ? primaryColor : '#1E293B',
@@ -357,7 +380,8 @@ export const AdminLiveChat = ({ adminName = 'Staff Support', apiUrl = '/api/live
                                                 lineHeight: '1.45',
                                                 fontSize: '13.5px',
                                                 wordBreak: 'break-word',
-                                            }, children: [_jsx("div", { style: { fontSize: '10px', opacity: 0.7, marginBottom: '2px', textTransform: 'uppercase' }, children: isAgent ? m.senderName || adminName : m.senderName || 'Visitor' }), m.text && _jsx("div", { children: m.text }), m.attachments && m.attachments.length > 0 && (_jsx("div", { style: { marginTop: m.text ? '8px' : '0', display: 'flex', flexDirection: 'column', gap: '6px' }, children: m.attachments.map((att, idx) => (_jsx("div", { children: att.type === 'image' ? (_jsxs("div", { onClick: () => setPreviewImage(att.data), style: {
+                                                boxShadow: isAgent ? `0 4px 12px ${primaryColor}40` : '0 4px 12px rgba(0,0,0,0.2)',
+                                            }, children: [_jsx("div", { style: { fontSize: '10px', opacity: 0.8, marginBottom: '2px', textTransform: 'uppercase', fontWeight: 600 }, children: isAgent ? m.senderName || adminName : m.senderName || 'Visitor' }), m.text && _jsx("div", { style: { whiteSpace: 'pre-wrap' }, children: m.text }), m.attachments && m.attachments.length > 0 && (_jsx("div", { style: { marginTop: m.text ? '8px' : '0', display: 'flex', flexDirection: 'column', gap: '6px' }, children: m.attachments.map((att, idx) => (_jsx("div", { children: att.type === 'image' ? (_jsxs("div", { onClick: () => setPreviewImage(att.data), style: {
                                                                 borderRadius: '8px',
                                                                 overflow: 'hidden',
                                                                 cursor: 'pointer',
@@ -407,6 +431,9 @@ export const AdminLiveChat = ({ adminName = 'Staff Support', apiUrl = '/api/live
                                 display: 'flex',
                                 gap: '6px',
                                 overflowX: 'auto',
+                                maxWidth: '100%',
+                                flexShrink: 0,
+                                boxSizing: 'border-box',
                             }, children: cannedReplies.map((r, idx) => (_jsx("button", { type: "button", onClick: () => handleSendReply(undefined, r), style: {
                                     backgroundColor: 'rgba(255, 255, 255, 0.05)',
                                     border: '1px solid rgba(255, 255, 255, 0.1)',
@@ -416,6 +443,7 @@ export const AdminLiveChat = ({ adminName = 'Staff Support', apiUrl = '/api/live
                                     fontSize: '11px',
                                     cursor: 'pointer',
                                     whiteSpace: 'nowrap',
+                                    flexShrink: 0,
                                 }, children: r }, idx))) }), pendingAttachments.length > 0 && (_jsx("div", { style: {
                                 padding: '6px 16px',
                                 backgroundColor: '#0f172a',
@@ -423,6 +451,8 @@ export const AdminLiveChat = ({ adminName = 'Staff Support', apiUrl = '/api/live
                                 display: 'flex',
                                 gap: '8px',
                                 overflowX: 'auto',
+                                flexShrink: 0,
+                                boxSizing: 'border-box',
                             }, children: pendingAttachments.map((att, idx) => (_jsxs("div", { style: {
                                     padding: '4px 8px',
                                     backgroundColor: 'rgba(0, 0, 0, 0.3)',
@@ -433,6 +463,7 @@ export const AdminLiveChat = ({ adminName = 'Staff Support', apiUrl = '/api/live
                                     gap: '6px',
                                     fontSize: '11px',
                                     color: '#e2e8f0',
+                                    flexShrink: 0,
                                 }, children: [_jsx("span", { children: att.type === 'pdf' ? '📄' : '🖼️' }), _jsx("span", { style: { maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }, children: att.name }), _jsx("button", { type: "button", onClick: () => setPendingAttachments((p) => p.filter((_, i) => i !== idx)), style: {
                                             background: 'none',
                                             border: 'none',
@@ -445,6 +476,7 @@ export const AdminLiveChat = ({ adminName = 'Staff Support', apiUrl = '/api/live
                                 backgroundColor: 'rgba(239, 68, 68, 0.15)',
                                 color: '#f87171',
                                 fontSize: '11px',
+                                flexShrink: 0,
                             }, children: fileError })), _jsxs("form", { onSubmit: (e) => handleSendReply(e), style: {
                                 padding: '12px 16px',
                                 borderTop: '1px solid rgba(255, 255, 255, 0.08)',
@@ -452,6 +484,9 @@ export const AdminLiveChat = ({ adminName = 'Staff Support', apiUrl = '/api/live
                                 display: 'flex',
                                 gap: '8px',
                                 alignItems: 'center',
+                                flexShrink: 0,
+                                width: '100%',
+                                boxSizing: 'border-box',
                             }, children: [_jsx("input", { type: "file", ref: fileInputRef, onChange: handleFileSelect, accept: "image/png,image/jpeg,image/webp,image/gif,application/pdf", style: { display: 'none' }, multiple: true }), _jsx("button", { type: "button", onClick: () => fileInputRef.current?.click(), title: "Attach image or PDF (strictly in-memory)", style: {
                                         background: 'transparent',
                                         border: 'none',

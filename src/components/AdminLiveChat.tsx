@@ -265,6 +265,8 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
     <div
       style={{
         display: 'flex',
+        width: '100%',
+        maxWidth: '100%',
         height: '650px',
         maxHeight: 'calc(100vh - 100px)',
         backgroundColor: '#0F172A',
@@ -274,16 +276,21 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
         border: '1px solid rgba(255, 255, 255, 0.1)',
         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
         fontFamily: 'system-ui, -apple-system, sans-serif',
+        boxSizing: 'border-box',
       }}
     >
       {/* Left Column: Sessions List */}
       <div
         style={{
-          width: '320px',
+          width: '300px',
+          minWidth: '260px',
+          maxWidth: '320px',
+          flexShrink: 0,
           borderRight: '1px solid rgba(255, 255, 255, 0.08)',
           backgroundColor: '#0B132B',
           display: 'flex',
           flexDirection: 'column',
+          overflow: 'hidden',
         }}
       >
         <div style={{ padding: '16px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
@@ -436,7 +443,16 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
       </div>
 
       {/* Right Column: Active Conversation */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#090E17' }}>
+      <div
+        style={{
+          flex: 1,
+          minWidth: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          backgroundColor: '#090E17',
+          overflow: 'hidden',
+        }}
+      >
         {active ? (
           <>
             {/* Header */}
@@ -448,16 +464,20 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
+                flexShrink: 0,
+                minWidth: 0,
               }}
             >
-              <div>
-                <div style={{ fontWeight: 600, fontSize: '14px', color: '#FFFFFF' }}>{active.clientName}</div>
-                <div style={{ fontSize: '11px', color: '#64748B' }}>
+              <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                <div style={{ fontWeight: 600, fontSize: '14px', color: '#FFFFFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {active.clientName}
+                </div>
+                <div style={{ fontSize: '11px', color: '#64748B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   Session: <span style={{ color: primaryColor }}>{active.sessionId}</span>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
                 <button
                   type="button"
                   onClick={handleDownloadTranscript}
@@ -511,11 +531,15 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
             <div
               style={{
                 flex: 1,
-                padding: '16px',
+                minHeight: 0,
+                padding: '16px 20px',
                 overflowY: 'auto',
+                overflowX: 'hidden',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '12px',
+                width: '100%',
+                boxSizing: 'border-box',
               }}
             >
               {messages.map((m) => {
@@ -530,12 +554,15 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
                     key={m.id}
                     style={{
                       display: 'flex',
+                      width: '100%',
                       justifyContent: isAgent ? 'flex-end' : 'flex-start',
+                      boxSizing: 'border-box',
                     }}
                   >
                     <div
                       style={{
                         maxWidth: '75%',
+                        minWidth: '120px',
                         padding: '10px 14px',
                         borderRadius: '12px',
                         backgroundColor: isAgent ? primaryColor : '#1E293B',
@@ -543,13 +570,14 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
                         lineHeight: '1.45',
                         fontSize: '13.5px',
                         wordBreak: 'break-word',
+                        boxShadow: isAgent ? `0 4px 12px ${primaryColor}40` : '0 4px 12px rgba(0,0,0,0.2)',
                       }}
                     >
-                      <div style={{ fontSize: '10px', opacity: 0.7, marginBottom: '2px', textTransform: 'uppercase' }}>
+                      <div style={{ fontSize: '10px', opacity: 0.8, marginBottom: '2px', textTransform: 'uppercase', fontWeight: 600 }}>
                         {isAgent ? m.senderName || adminName : m.senderName || 'Visitor'}
                       </div>
 
-                      {m.text && <div>{m.text}</div>}
+                      {m.text && <div style={{ whiteSpace: 'pre-wrap' }}>{m.text}</div>}
 
                       {/* In-Memory Attachment Rendering */}
                       {m.attachments && m.attachments.length > 0 && (
@@ -666,6 +694,9 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
                 display: 'flex',
                 gap: '6px',
                 overflowX: 'auto',
+                maxWidth: '100%',
+                flexShrink: 0,
+                boxSizing: 'border-box',
               }}
             >
               {cannedReplies.map((r, idx) => (
@@ -682,6 +713,7 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
                     fontSize: '11px',
                     cursor: 'pointer',
                     whiteSpace: 'nowrap',
+                    flexShrink: 0,
                   }}
                 >
                   {r}
@@ -699,6 +731,8 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
                   display: 'flex',
                   gap: '8px',
                   overflowX: 'auto',
+                  flexShrink: 0,
+                  boxSizing: 'border-box',
                 }}
               >
                 {pendingAttachments.map((att, idx) => (
@@ -714,6 +748,7 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
                       gap: '6px',
                       fontSize: '11px',
                       color: '#e2e8f0',
+                      flexShrink: 0,
                     }}
                   >
                     <span>{att.type === 'pdf' ? '📄' : '🖼️'}</span>
@@ -747,6 +782,7 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
                   backgroundColor: 'rgba(239, 68, 68, 0.15)',
                   color: '#f87171',
                   fontSize: '11px',
+                  flexShrink: 0,
                 }}
               >
                 {fileError}
@@ -763,6 +799,9 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
                 display: 'flex',
                 gap: '8px',
                 alignItems: 'center',
+                flexShrink: 0,
+                width: '100%',
+                boxSizing: 'border-box',
               }}
             >
               {/* Hidden File Input */}
