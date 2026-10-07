@@ -45,6 +45,15 @@ export const ConciergeChat = ({ authRoute, sessionCheckRoute, currentUser: expli
         setAdminDeskOpen(false);
         onSignOut?.();
     };
+    const [isMobile, setIsMobile] = useState(false);
+    useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(typeof window !== 'undefined' && window.innerWidth <= 768);
+        };
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
     const isAdminOrStaff = user?.role === 'admin' || user?.role === 'staff';
     return (_jsxs(_Fragment, { children: [(!isAdminOrStaff || !adminDeskOpen) && (_jsx(LiveChatWidget, { brandName: brandName, logo: logo, icon: icon, primaryColor: primaryColor, apiUrl: apiUrl, supportEmail: supportEmail, welcomeMessage: welcomeMessage, position: position, currentUser: user, authRoute: authRoute, onAuthSuccess: handleAuthSuccess, onStaffLoginClick: () => {
                     if (isAdminOrStaff) {
@@ -53,22 +62,22 @@ export const ConciergeChat = ({ authRoute, sessionCheckRoute, currentUser: expli
                 }, onSignOut: user ? handleSignOut : undefined })), isAdminOrStaff && adminDeskOpen && (_jsx("div", { style: {
                     position: 'fixed',
                     inset: 0,
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    backgroundColor: 'rgba(0, 0, 0, 0.85)',
                     backdropFilter: 'blur(10px)',
                     zIndex: 999998,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    padding: '24px',
+                    padding: isMobile ? '0' : '24px',
                     fontFamily: 'system-ui, -apple-system, sans-serif',
                 }, children: _jsx("div", { style: {
                         width: '100%',
-                        maxWidth: '1200px',
-                        height: '85vh',
-                        maxHeight: '800px',
-                        borderRadius: '16px',
+                        maxWidth: isMobile ? '100%' : '1200px',
+                        height: isMobile ? '100%' : '85vh',
+                        maxHeight: isMobile ? '100%' : '800px',
+                        borderRadius: isMobile ? '0' : '16px',
                         overflow: 'hidden',
-                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6)',
+                        boxShadow: isMobile ? 'none' : '0 25px 50px -12px rgba(0, 0, 0, 0.6)',
                         display: 'flex',
                         flexDirection: 'column',
                     }, children: _jsx(AdminLiveChat, { adminName: user?.name || 'Staff Support', apiUrl: apiUrl, primaryColor: primaryColor, brandName: brandName, logo: logo, onSwitchToWidget: () => setAdminDeskOpen(false), onSignOut: handleSignOut }) }) }))] }));

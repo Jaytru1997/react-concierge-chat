@@ -13,14 +13,25 @@ export const AdminLiveChat = ({ adminName = 'Staff Support', apiUrl = '/api/live
     const [pendingAttachments, setPendingAttachments] = useState([]);
     const [fileError, setFileError] = useState(null);
     const [previewImage, setPreviewImage] = useState(null);
+    const [isMobile, setIsMobile] = useState(false);
+    const [mobileView, setMobileView] = useState('list');
     const messagesEndRef = useRef(null);
     const lastAdminTimestamp = useRef(0);
     const eventSourceRef = useRef(null);
     const fileInputRef = useRef(null);
+    useEffect(() => {
+        const checkMobile = () => {
+            const mobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+            setIsMobile(mobile);
+        };
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
     const loadSessions = async () => {
         const all = await dbGetAllSessions();
         setSessions(all);
-        if (!selectedSessionId && all.length > 0) {
+        if (!selectedSessionId && all.length > 0 && !isMobile) {
             setSelectedSessionId(all[0].sessionId);
         }
     };
@@ -187,6 +198,9 @@ export const AdminLiveChat = ({ adminName = 'Staff Support', apiUrl = '/api/live
             setSessions((prev) => prev.filter((s) => s.sessionId !== sessionId));
             if (selectedSessionId === sessionId) {
                 setSelectedSessionId(null);
+                if (isMobile) {
+                    setMobileView('list');
+                }
             }
         }
     };
@@ -219,71 +233,86 @@ export const AdminLiveChat = ({ adminName = 'Staff Support', apiUrl = '/api/live
         s.sessionId.toLowerCase().includes(searchQuery.toLowerCase()) ||
         s.lastMessage?.toLowerCase().includes(searchQuery.toLowerCase()));
     const active = sessions.find((s) => s.sessionId === selectedSessionId);
+    const otherUnreadCount = sessions
+        .filter((s) => s.sessionId !== selectedSessionId)
+        .reduce((acc, s) => acc + (s.unreadCount || 0), 0);
     return (_jsxs("div", { style: {
             display: 'flex',
+            flexDirection: 'row',
             width: '100%',
             maxWidth: '100%',
-            height: '650px',
-            maxHeight: 'calc(100vh - 100px)',
+            height: '100%',
+            minHeight: isMobile ? '100%' : '650px',
+            maxHeight: isMobile ? '100%' : 'calc(100vh - 100px)',
             backgroundColor: '#0F172A',
             color: '#E2E8F0',
-            borderRadius: '16px',
+            borderRadius: isMobile ? '0' : '16px',
             overflow: 'hidden',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+            border: isMobile ? 'none' : '1px solid rgba(255, 255, 255, 0.1)',
+            boxShadow: isMobile ? 'none' : '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
             fontFamily: 'system-ui, -apple-system, sans-serif',
             boxSizing: 'border-box',
+            position: 'relative',
         }, children: [_jsxs("div", { style: {
-                    width: '300px',
-                    minWidth: '260px',
-                    maxWidth: '320px',
+                    width: isMobile ? '100%' : '300px',
+                    minWidth: isMobile ? '100%' : '260px',
+                    maxWidth: isMobile ? '100%' : '320px',
                     flexShrink: 0,
-                    borderRight: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRight: isMobile ? 'none' : '1px solid rgba(255, 255, 255, 0.08)',
                     backgroundColor: '#0B132B',
-                    display: 'flex',
+                    display: (!isMobile || mobileView === 'list') ? 'flex' : 'none',
                     flexDirection: 'column',
                     overflow: 'hidden',
-                }, children: [_jsxs("div", { style: { padding: '16px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }, children: [_jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }, children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: '8px' }, children: [_jsx("span", { style: { fontWeight: 600, fontSize: '15px', color: '#FFFFFF' }, children: "Live Sessions" }), _jsx("span", { style: {
+                    height: '100%',
+                    boxSizing: 'border-box',
+                }, children: [_jsxs("div", { style: { padding: '16px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }, children: [_jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }, children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: '8px' }, children: [_jsx("span", { style: { fontWeight: 700, fontSize: '15px', color: '#FFFFFF' }, children: "Live Sessions" }), _jsx("span", { style: {
                                                     backgroundColor: primaryColor,
                                                     color: '#FFFFFF',
                                                     borderRadius: '9999px',
                                                     fontSize: '11px',
                                                     padding: '2px 8px',
                                                     fontWeight: 'bold',
-                                                }, children: sessions.length })] }), _jsxs("div", { style: { display: 'flex', gap: '4px' }, children: [onSwitchToWidget && (_jsx("button", { type: "button", onClick: onSwitchToWidget, title: "Switch to Floating Widget", style: {
+                                                }, children: sessions.length })] }), _jsxs("div", { style: { display: 'flex', gap: '6px' }, children: [onSwitchToWidget && (_jsx("button", { type: "button", onClick: onSwitchToWidget, title: "Switch to Floating Widget", style: {
                                                     backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                                                    border: 'none',
+                                                    border: '1px solid rgba(255, 255, 255, 0.12)',
                                                     color: '#94a3b8',
-                                                    padding: '5px 8px',
+                                                    padding: '5px 9px',
                                                     borderRadius: '6px',
                                                     cursor: 'pointer',
                                                     fontSize: '11px',
+                                                    fontWeight: 500,
                                                 }, children: "Widget" })), onSignOut && (_jsx("button", { type: "button", onClick: onSignOut, title: "Sign Out", style: {
                                                     backgroundColor: 'rgba(239, 68, 68, 0.15)',
                                                     border: '1px solid rgba(239, 68, 68, 0.3)',
                                                     color: '#f87171',
-                                                    padding: '5px 8px',
+                                                    padding: '5px 9px',
                                                     borderRadius: '6px',
                                                     cursor: 'pointer',
                                                     fontSize: '11px',
-                                                }, children: "Sign Out" }))] })] }), _jsx("input", { type: "text", placeholder: "Search visitor / session...", value: searchQuery, onChange: (e) => setSearchQuery(e.target.value), style: {
-                                    width: '100%',
-                                    padding: '8px 12px',
-                                    borderRadius: '8px',
-                                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                                    color: '#FFFFFF',
-                                    fontSize: '13px',
-                                    outline: 'none',
-                                    boxSizing: 'border-box',
-                                } })] }), _jsx("div", { style: { flex: 1, overflowY: 'auto', padding: '8px' }, children: filtered.length === 0 ? (_jsx("div", { style: { textAlign: 'center', padding: '40px 10px', color: '#64748B', fontSize: '13px' }, children: "No active chat sessions" })) : (filtered.map((s) => {
+                                                    fontWeight: 500,
+                                                }, children: "Sign Out" }))] })] }), _jsx("div", { style: { position: 'relative' }, children: _jsx("input", { type: "text", placeholder: "Search visitor / session...", value: searchQuery, onChange: (e) => setSearchQuery(e.target.value), style: {
+                                        width: '100%',
+                                        padding: '8px 12px',
+                                        borderRadius: '8px',
+                                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                                        color: '#FFFFFF',
+                                        fontSize: '13px',
+                                        outline: 'none',
+                                        boxSizing: 'border-box',
+                                    } }) })] }), _jsx("div", { style: { flex: 1, overflowY: 'auto', padding: '8px', WebkitOverflowScrolling: 'touch' }, children: filtered.length === 0 ? (_jsx("div", { style: { textAlign: 'center', padding: '40px 10px', color: '#64748B', fontSize: '13px' }, children: "No active chat sessions" })) : (filtered.map((s) => {
                             const isSelected = s.sessionId === selectedSessionId;
                             const timeStr = new Date(s.lastUpdated).toLocaleTimeString([], {
                                 hour: '2-digit',
                                 minute: '2-digit',
                             });
-                            return (_jsxs("div", { onClick: () => setSelectedSessionId(s.sessionId), style: {
-                                    padding: '10px 12px',
+                            return (_jsxs("div", { onClick: () => {
+                                    setSelectedSessionId(s.sessionId);
+                                    if (isMobile) {
+                                        setMobileView('chat');
+                                    }
+                                }, style: {
+                                    padding: '12px 14px',
                                     borderRadius: '10px',
                                     cursor: 'pointer',
                                     backgroundColor: isSelected ? '#1E293B' : 'transparent',
@@ -293,30 +322,37 @@ export const AdminLiveChat = ({ adminName = 'Staff Support', apiUrl = '/api/live
                                     alignItems: 'center',
                                     marginBottom: '4px',
                                     transition: 'all 0.15s ease',
-                                }, children: [_jsxs("div", { style: { overflow: 'hidden', paddingRight: '8px' }, children: [_jsx("div", { style: { fontWeight: 600, fontSize: '13px', color: '#FFFFFF' }, children: s.clientName || 'Visitor' }), _jsx("div", { style: {
-                                                    fontSize: '11px',
+                                    minHeight: '48px',
+                                    boxSizing: 'border-box',
+                                }, children: [_jsxs("div", { style: { overflow: 'hidden', paddingRight: '8px', flex: 1, minWidth: 0 }, children: [_jsx("div", { style: { fontWeight: 600, fontSize: '13.5px', color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }, children: s.clientName || 'Visitor' }), _jsx("div", { style: {
+                                                    fontSize: '11.5px',
                                                     color: '#94A3B8',
                                                     whiteSpace: 'nowrap',
                                                     overflow: 'hidden',
                                                     textOverflow: 'ellipsis',
-                                                    maxWidth: '180px',
-                                                }, children: s.lastMessage || 'Started chat' })] }), _jsxs("div", { style: { textAlign: 'right', flexShrink: 0 }, children: [_jsx("div", { style: { fontSize: '10px', color: '#64748B' }, children: timeStr }), s.unreadCount > 0 && (_jsx("span", { style: {
+                                                    maxWidth: '200px',
+                                                    marginTop: '2px',
+                                                }, children: s.lastMessage || 'Started chat' })] }), _jsxs("div", { style: { textAlign: 'right', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }, children: [_jsx("div", { style: { fontSize: '10.5px', color: '#64748B' }, children: timeStr }), s.unreadCount > 0 && (_jsx("span", { style: {
                                                     backgroundColor: '#EF4444',
                                                     color: '#FFFFFF',
                                                     borderRadius: '9999px',
                                                     fontSize: '10px',
                                                     padding: '2px 6px',
                                                     fontWeight: 'bold',
+                                                    boxShadow: '0 2px 4px rgba(239, 68, 68, 0.4)',
                                                 }, children: s.unreadCount }))] })] }, s.sessionId));
                         })) })] }), _jsx("div", { style: {
                     flex: 1,
                     minWidth: 0,
-                    display: 'flex',
+                    width: isMobile ? '100%' : 'auto',
+                    display: (!isMobile || mobileView === 'chat') ? 'flex' : 'none',
                     flexDirection: 'column',
                     backgroundColor: '#090E17',
                     overflow: 'hidden',
+                    height: '100%',
+                    boxSizing: 'border-box',
                 }, children: active ? (_jsxs(_Fragment, { children: [_jsxs("div", { style: {
-                                padding: '14px 20px',
+                                padding: isMobile ? '12px 14px' : '14px 20px',
                                 borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
                                 backgroundColor: '#0B132B',
                                 display: 'flex',
@@ -324,36 +360,67 @@ export const AdminLiveChat = ({ adminName = 'Staff Support', apiUrl = '/api/live
                                 alignItems: 'center',
                                 flexShrink: 0,
                                 minWidth: 0,
-                            }, children: [_jsxs("div", { style: { minWidth: 0, overflow: 'hidden' }, children: [_jsx("div", { style: { fontWeight: 600, fontSize: '14px', color: '#FFFFFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }, children: active.clientName }), _jsxs("div", { style: { fontSize: '11px', color: '#64748B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }, children: ["Session: ", _jsx("span", { style: { color: primaryColor }, children: active.sessionId })] })] }), _jsxs("div", { style: { display: 'flex', gap: '8px', flexShrink: 0 }, children: [_jsx("button", { type: "button", onClick: handleDownloadTranscript, title: "Export Transcript", style: {
+                                gap: '8px',
+                            }, children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', minWidth: 0, overflow: 'hidden', gap: '8px' }, children: [isMobile && (_jsxs("button", { type: "button", onClick: () => setMobileView('list'), style: {
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '4px',
+                                                backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                                                border: '1px solid rgba(255, 255, 255, 0.12)',
+                                                color: '#FFFFFF',
+                                                borderRadius: '8px',
+                                                padding: '6px 9px',
+                                                fontSize: '12px',
+                                                fontWeight: 600,
+                                                cursor: 'pointer',
+                                                flexShrink: 0,
+                                            }, "aria-label": "Back to sessions list", children: [_jsx("svg", { width: "15", height: "15", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.5", strokeLinecap: "round", strokeLinejoin: "round", children: _jsx("path", { d: "M19 12H5M12 19l-7-7 7-7" }) }), _jsx("span", { children: "Back" }), otherUnreadCount > 0 && (_jsx("span", { style: {
+                                                        backgroundColor: '#EF4444',
+                                                        color: '#FFFFFF',
+                                                        borderRadius: '9999px',
+                                                        fontSize: '10px',
+                                                        padding: '1px 5px',
+                                                        fontWeight: 'bold',
+                                                    }, children: otherUnreadCount }))] })), _jsxs("div", { style: { minWidth: 0, overflow: 'hidden' }, children: [_jsx("div", { style: { fontWeight: 600, fontSize: '14px', color: '#FFFFFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }, children: active.clientName }), _jsxs("div", { style: { fontSize: '11px', color: '#64748B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }, children: ["ID: ", _jsx("span", { style: { color: primaryColor }, children: active.sessionId.substring(0, 16) })] })] })] }), _jsxs("div", { style: { display: 'flex', gap: isMobile ? '4px' : '8px', flexShrink: 0 }, children: [_jsxs("button", { type: "button", onClick: handleDownloadTranscript, title: "Export Transcript", style: {
                                                 backgroundColor: 'transparent',
                                                 border: '1px solid rgba(255, 255, 255, 0.15)',
                                                 color: '#94a3b8',
                                                 borderRadius: '8px',
-                                                padding: '6px 10px',
-                                                fontSize: '12px',
+                                                padding: isMobile ? '6px 8px' : '6px 10px',
+                                                fontSize: isMobile ? '11px' : '12px',
                                                 cursor: 'pointer',
-                                            }, children: "Export" }), _jsx("button", { type: "button", onClick: () => setSoundEnabled(!soundEnabled), style: {
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '4px',
+                                            }, children: [_jsxs("svg", { width: "13", height: "13", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [_jsx("path", { d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" }), _jsx("polyline", { points: "7 10 12 15 17 10" }), _jsx("line", { x1: "12", y1: "15", x2: "12", y2: "3" })] }), !isMobile && _jsx("span", { children: "Export" })] }), _jsxs("button", { type: "button", onClick: () => setSoundEnabled(!soundEnabled), title: soundEnabled ? 'Alerts Enabled (Click to Mute)' : 'Alerts Muted (Click to Enable)', style: {
                                                 backgroundColor: 'transparent',
                                                 border: '1px solid rgba(255, 255, 255, 0.15)',
                                                 color: soundEnabled ? primaryColor : '#64748B',
                                                 borderRadius: '8px',
-                                                padding: '6px 10px',
-                                                fontSize: '12px',
+                                                padding: isMobile ? '6px 8px' : '6px 10px',
+                                                fontSize: isMobile ? '11px' : '12px',
                                                 cursor: 'pointer',
-                                            }, children: soundEnabled ? '🔔 Alert On' : '🔕 Muted' }), _jsx("button", { type: "button", onClick: () => handleDeleteSession(active.sessionId), style: {
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '4px',
+                                            }, children: [_jsx("span", { children: soundEnabled ? '🔔' : '🔕' }), !isMobile && _jsx("span", { children: soundEnabled ? 'Alert On' : 'Muted' })] }), _jsxs("button", { type: "button", onClick: () => handleDeleteSession(active.sessionId), title: "Delete Session", style: {
                                                 backgroundColor: 'transparent',
                                                 border: '1px solid rgba(239, 68, 68, 0.3)',
                                                 color: '#EF4444',
                                                 borderRadius: '8px',
-                                                padding: '6px 10px',
-                                                fontSize: '12px',
+                                                padding: isMobile ? '6px 8px' : '6px 10px',
+                                                fontSize: isMobile ? '11px' : '12px',
                                                 cursor: 'pointer',
-                                            }, children: "Delete" })] })] }), _jsxs("div", { style: {
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '4px',
+                                            }, children: [_jsxs("svg", { width: "13", height: "13", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [_jsx("polyline", { points: "3 6 5 6 21 6" }), _jsx("path", { d: "M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" })] }), !isMobile && _jsx("span", { children: "Delete" })] })] })] }), _jsxs("div", { style: {
                                 flex: 1,
                                 minHeight: 0,
-                                padding: '16px 20px',
+                                padding: isMobile ? '14px 12px' : '16px 20px',
                                 overflowY: 'auto',
                                 overflowX: 'hidden',
+                                WebkitOverflowScrolling: 'touch',
                                 display: 'flex',
                                 flexDirection: 'column',
                                 gap: '12px',
@@ -371,8 +438,8 @@ export const AdminLiveChat = ({ adminName = 'Staff Support', apiUrl = '/api/live
                                             justifyContent: isAgent ? 'flex-end' : 'flex-start',
                                             boxSizing: 'border-box',
                                         }, children: _jsxs("div", { style: {
-                                                maxWidth: '75%',
-                                                minWidth: '120px',
+                                                maxWidth: isMobile ? '88%' : '75%',
+                                                minWidth: '100px',
                                                 padding: '10px 14px',
                                                 borderRadius: '12px',
                                                 backgroundColor: isAgent ? primaryColor : '#1E293B',
@@ -380,6 +447,7 @@ export const AdminLiveChat = ({ adminName = 'Staff Support', apiUrl = '/api/live
                                                 lineHeight: '1.45',
                                                 fontSize: '13.5px',
                                                 wordBreak: 'break-word',
+                                                overflowWrap: 'break-word',
                                                 boxShadow: isAgent ? `0 4px 12px ${primaryColor}40` : '0 4px 12px rgba(0,0,0,0.2)',
                                             }, children: [_jsx("div", { style: { fontSize: '10px', opacity: 0.8, marginBottom: '2px', textTransform: 'uppercase', fontWeight: 600 }, children: isAgent ? m.senderName || adminName : m.senderName || 'Visitor' }), m.text && _jsx("div", { style: { whiteSpace: 'pre-wrap' }, children: m.text }), m.attachments && m.attachments.length > 0 && (_jsx("div", { style: { marginTop: m.text ? '8px' : '0', display: 'flex', flexDirection: 'column', gap: '6px' }, children: m.attachments.map((att, idx) => (_jsx("div", { children: att.type === 'image' ? (_jsxs("div", { onClick: () => setPreviewImage(att.data), style: {
                                                                 borderRadius: '8px',
@@ -387,7 +455,7 @@ export const AdminLiveChat = ({ adminName = 'Staff Support', apiUrl = '/api/live
                                                                 cursor: 'pointer',
                                                                 border: '1px solid rgba(255, 255, 255, 0.15)',
                                                                 backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                                                                maxWidth: '260px',
+                                                                maxWidth: isMobile ? '100%' : '260px',
                                                             }, children: [_jsx("img", { src: att.data, alt: att.name, style: {
                                                                         width: '100%',
                                                                         height: 'auto',
@@ -401,7 +469,7 @@ export const AdminLiveChat = ({ adminName = 'Staff Support', apiUrl = '/api/live
                                                                         color: '#e2e8f0',
                                                                         display: 'flex',
                                                                         justifyContent: 'space-between',
-                                                                    }, children: [_jsx("span", { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '160px' }, children: att.name }), _jsx("span", { children: formatBytes(att.size) })] })] })) : (_jsxs("div", { onClick: () => downloadAttachment(att), style: {
+                                                                    }, children: [_jsx("span", { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '140px' }, children: att.name }), _jsx("span", { children: formatBytes(att.size) })] })] })) : (_jsxs("div", { onClick: () => downloadAttachment(att), style: {
                                                                 display: 'flex',
                                                                 alignItems: 'center',
                                                                 gap: '8px',
@@ -431,6 +499,7 @@ export const AdminLiveChat = ({ adminName = 'Staff Support', apiUrl = '/api/live
                                 display: 'flex',
                                 gap: '6px',
                                 overflowX: 'auto',
+                                WebkitOverflowScrolling: 'touch',
                                 maxWidth: '100%',
                                 flexShrink: 0,
                                 boxSizing: 'border-box',
@@ -439,18 +508,19 @@ export const AdminLiveChat = ({ adminName = 'Staff Support', apiUrl = '/api/live
                                     border: '1px solid rgba(255, 255, 255, 0.1)',
                                     color: '#CBD5E1',
                                     borderRadius: '20px',
-                                    padding: '4px 10px',
+                                    padding: '5px 12px',
                                     fontSize: '11px',
                                     cursor: 'pointer',
                                     whiteSpace: 'nowrap',
                                     flexShrink: 0,
                                 }, children: r }, idx))) }), pendingAttachments.length > 0 && (_jsx("div", { style: {
-                                padding: '6px 16px',
+                                padding: '6px 14px',
                                 backgroundColor: '#0f172a',
                                 borderTop: '1px solid rgba(255, 255, 255, 0.08)',
                                 display: 'flex',
                                 gap: '8px',
                                 overflowX: 'auto',
+                                WebkitOverflowScrolling: 'touch',
                                 flexShrink: 0,
                                 boxSizing: 'border-box',
                             }, children: pendingAttachments.map((att, idx) => (_jsxs("div", { style: {
@@ -478,7 +548,7 @@ export const AdminLiveChat = ({ adminName = 'Staff Support', apiUrl = '/api/live
                                 fontSize: '11px',
                                 flexShrink: 0,
                             }, children: fileError })), _jsxs("form", { onSubmit: (e) => handleSendReply(e), style: {
-                                padding: '12px 16px',
+                                padding: isMobile ? '10px 12px' : '12px 16px',
                                 borderTop: '1px solid rgba(255, 255, 255, 0.08)',
                                 backgroundColor: '#0B132B',
                                 display: 'flex',
@@ -492,40 +562,55 @@ export const AdminLiveChat = ({ adminName = 'Staff Support', apiUrl = '/api/live
                                         border: 'none',
                                         color: '#94a3b8',
                                         cursor: 'pointer',
-                                        padding: '8px',
+                                        padding: isMobile ? '6px' : '8px',
                                         borderRadius: '8px',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                    }, children: _jsx("svg", { width: "18", height: "18", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: _jsx("path", { d: "M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" }) }) }), _jsx("input", { type: "text", placeholder: `Reply as ${adminName}...`, value: replyText, onChange: (e) => setReplyText(e.target.value), style: {
+                                        flexShrink: 0,
+                                    }, children: _jsx("svg", { width: "18", height: "18", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: _jsx("path", { d: "M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" }) }) }), _jsx("input", { type: "text", placeholder: isMobile ? 'Reply message...' : `Reply as ${adminName}...`, value: replyText, onChange: (e) => setReplyText(e.target.value), style: {
                                         flex: 1,
-                                        padding: '10px 14px',
+                                        minWidth: 0,
+                                        padding: isMobile ? '8px 12px' : '10px 14px',
                                         borderRadius: '10px',
                                         border: '1px solid rgba(255, 255, 255, 0.1)',
                                         backgroundColor: 'rgba(255, 255, 255, 0.08)',
                                         color: '#FFFFFF',
                                         fontSize: '13px',
                                         outline: 'none',
-                                    } }), _jsx("button", { type: "submit", disabled: !replyText.trim() && pendingAttachments.length === 0, style: {
+                                    } }), _jsxs("button", { type: "submit", disabled: !replyText.trim() && pendingAttachments.length === 0, style: {
                                         backgroundColor: primaryColor,
                                         color: '#FFFFFF',
                                         border: 'none',
                                         borderRadius: '10px',
-                                        padding: '10px 18px',
+                                        padding: isMobile ? '8px 12px' : '10px 18px',
                                         fontWeight: 'bold',
                                         fontSize: '13px',
                                         cursor: (!replyText.trim() && pendingAttachments.length === 0) ? 'not-allowed' : 'pointer',
                                         opacity: (!replyText.trim() && pendingAttachments.length === 0) ? 0.5 : 1,
-                                    }, children: "Send Reply" })] })] })) : (_jsx("div", { style: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748B' }, children: "Select a session from the list to start chatting" })) }), previewImage && (_jsx("div", { style: {
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '4px',
+                                        flexShrink: 0,
+                                    }, children: [_jsx("span", { children: isMobile ? 'Send' : 'Send Reply' }), _jsxs("svg", { width: "13", height: "13", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.5", strokeLinecap: "round", strokeLinejoin: "round", children: [_jsx("line", { x1: "22", y1: "2", x2: "11", y2: "13" }), _jsx("polygon", { points: "22 2 15 22 11 13 2 9 22 2" })] })] })] })] })) : (_jsxs("div", { style: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#64748B', padding: '24px', textAlign: 'center', gap: '12px' }, children: [_jsx("div", { style: { fontSize: '14px' }, children: "Select a session from the list to start chatting" }), isMobile && (_jsx("button", { type: "button", onClick: () => setMobileView('list'), style: {
+                                backgroundColor: primaryColor,
+                                color: '#FFFFFF',
+                                border: 'none',
+                                borderRadius: '8px',
+                                padding: '8px 16px',
+                                fontSize: '13px',
+                                cursor: 'pointer',
+                                fontWeight: 600,
+                            }, children: "View Session List" }))] })) }), previewImage && (_jsx("div", { style: {
                     position: 'fixed',
                     inset: 0,
-                    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                    backgroundColor: 'rgba(0, 0, 0, 0.92)',
                     zIndex: 1000000,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    padding: '20px',
-                }, onClick: () => setPreviewImage(null), children: _jsxs("div", { style: { position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }, children: [_jsx("img", { src: previewImage, alt: "Preview", style: {
+                    padding: '16px',
+                }, onClick: () => setPreviewImage(null), children: _jsxs("div", { style: { position: 'relative', maxWidth: '95vw', maxHeight: '90vh' }, children: [_jsx("img", { src: previewImage, alt: "Preview", style: {
                                 maxWidth: '100%',
                                 maxHeight: '85vh',
                                 objectFit: 'contain',
@@ -547,5 +632,6 @@ export const AdminLiveChat = ({ adminName = 'Staff Support', apiUrl = '/api/live
                                 justifyContent: 'center',
                                 fontWeight: 'bold',
                                 fontSize: '16px',
+                                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.5)',
                             }, children: "\u00D7" })] }) }))] }));
 };

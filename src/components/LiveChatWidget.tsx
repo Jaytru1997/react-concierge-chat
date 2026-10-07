@@ -147,6 +147,7 @@ export const LiveChatWidget: React.FC<LiveChatWidgetProps & {
     }
   };
 
+  const [isHovered, setIsHovered] = useState(false);
   const isLeft = position === 'bottom-left';
   const isStaffUser = currentUser?.role === 'admin' || currentUser?.role === 'staff';
 
@@ -165,11 +166,13 @@ export const LiveChatWidget: React.FC<LiveChatWidgetProps & {
         <button
           type="button"
           onClick={handleToggleModal}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
           style={{
             position: 'relative',
-            width: '56px',
-            height: '56px',
-            borderRadius: '16px',
+            width: '60px',
+            height: '60px',
+            borderRadius: '20px',
             backgroundColor: primaryColor,
             color: '#FFFFFF',
             border: 'none',
@@ -177,20 +180,55 @@ export const LiveChatWidget: React.FC<LiveChatWidgetProps & {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: `0 10px 25px ${primaryColor}66`,
-            transition: 'all 0.25s ease',
+            boxShadow: isHovered
+              ? `0 14px 32px ${primaryColor}77, 0 4px 12px rgba(0, 0, 0, 0.25)`
+              : `0 8px 24px ${primaryColor}55, 0 2px 6px rgba(0, 0, 0, 0.15)`,
+            transform: isHovered ? 'scale(1.08) translateY(-2px)' : 'scale(1) translateY(0)',
+            transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+            outline: 'none',
           }}
-          aria-label="Open live chat"
+          aria-label={modalOpen ? 'Close live chat' : 'Open live chat'}
         >
-          {icon ? (
+          {modalOpen ? (
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ transition: 'transform 0.2s ease' }}
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          ) : icon ? (
             icon
           ) : (
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M4.5 3C3.67 3 3 3.67 3 4.5V16.5C3 17.33 3.67 18 4.5 18H7V21.5L11.5 18H19.5C20.33 18 21 17.33 21 16.5V4.5C21 3.67 20.33 3 19.5 3H4.5ZM8 11.5C7.45 11.5 7 11.05 7 10.5C7 9.95 7.45 9.5 8 9.5C8.55 9.5 9 9.95 9 10.5C9 11.05 8.55 11.5 8 11.5ZM12 11.5C11.45 11.5 11 11.05 11 10.5C11 9.95 11.45 9.5 12 9.5C12.55 9.5 13 9.95 13 10.5C13 11.05 12.55 11.5 12 11.5ZM16 11.5C15.45 11.5 15 11.05 15 10.5C15 9.95 15.45 9.5 16 9.5C16.55 9.5 17 9.95 17 10.5C17 11.05 16.55 11.5 16 11.5Z" />
+            <svg
+              width="28"
+              height="28"
+              viewBox="0 0 28 28"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              style={{
+                filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15))',
+                transition: 'transform 0.2s ease',
+              }}
+            >
+              <path
+                d="M14 3.2C7.925 3.2 3 7.573 3 12.966C3 15.85 4.398 18.432 6.643 20.205C6.326 21.818 5.485 23.248 4.238 24.326C4.045 24.492 4.072 24.79 4.288 24.918C4.425 25 4.585 25.019 4.737 24.969C7.306 24.157 9.531 22.807 11.139 21.472C12.062 21.774 13.018 21.934 14 21.934C20.075 21.934 25 17.56 25 12.167C25 6.774 20.075 3.2 14 3.2Z"
+                fill="currentColor"
+              />
+              <circle cx="9.5" cy="12.6" r="1.6" fill="#FFFFFF" fillOpacity="0.95" />
+              <circle cx="14" cy="12.6" r="1.6" fill="#FFFFFF" fillOpacity="0.95" />
+              <circle cx="18.5" cy="12.6" r="1.6" fill="#FFFFFF" fillOpacity="0.95" />
             </svg>
           )}
 
-          {unreadCount > 0 && (
+          {unreadCount > 0 && !modalOpen && (
             <span
               style={{
                 position: 'absolute',
@@ -203,6 +241,7 @@ export const LiveChatWidget: React.FC<LiveChatWidgetProps & {
                 fontWeight: 'bold',
                 padding: '2px 6px',
                 border: '2px solid #FFFFFF',
+                boxShadow: '0 2px 6px rgba(239, 68, 68, 0.4)',
               }}
             >
               {unreadCount > 9 ? '9+' : unreadCount}
@@ -266,7 +305,19 @@ export const LiveChatWidget: React.FC<LiveChatWidgetProps & {
                 {logo ? (
                   <img src={logo} alt={brandName} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                 ) : (
-                  <span style={{ fontSize: '16px' }}>💬</span>
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    style={{ color: primaryColor }}
+                  >
+                    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                  </svg>
                 )}
                 <span
                   style={{

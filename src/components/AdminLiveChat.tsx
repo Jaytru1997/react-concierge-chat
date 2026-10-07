@@ -29,15 +29,28 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
   const [fileError, setFileError] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+  const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
+
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const lastAdminTimestamp = useRef<number>(0);
   const eventSourceRef = useRef<EventSource | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+      setIsMobile(mobile);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   const loadSessions = async () => {
     const all = await dbGetAllSessions();
     setSessions(all);
-    if (!selectedSessionId && all.length > 0) {
+    if (!selectedSessionId && all.length > 0 && !isMobile) {
       setSelectedSessionId(all[0].sessionId);
     }
   };
@@ -222,6 +235,9 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
       setSessions((prev) => prev.filter((s) => s.sessionId !== sessionId));
       if (selectedSessionId === sessionId) {
         setSelectedSessionId(null);
+        if (isMobile) {
+          setMobileView('list');
+        }
       }
     }
   };
@@ -260,43 +276,51 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
   );
 
   const active = sessions.find((s) => s.sessionId === selectedSessionId);
+  const otherUnreadCount = sessions
+    .filter((s) => s.sessionId !== selectedSessionId)
+    .reduce((acc, s) => acc + (s.unreadCount || 0), 0);
 
   return (
     <div
       style={{
         display: 'flex',
+        flexDirection: 'row',
         width: '100%',
         maxWidth: '100%',
-        height: '650px',
-        maxHeight: 'calc(100vh - 100px)',
+        height: '100%',
+        minHeight: isMobile ? '100%' : '650px',
+        maxHeight: isMobile ? '100%' : 'calc(100vh - 100px)',
         backgroundColor: '#0F172A',
         color: '#E2E8F0',
-        borderRadius: '16px',
+        borderRadius: isMobile ? '0' : '16px',
         overflow: 'hidden',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+        border: isMobile ? 'none' : '1px solid rgba(255, 255, 255, 0.1)',
+        boxShadow: isMobile ? 'none' : '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
         fontFamily: 'system-ui, -apple-system, sans-serif',
         boxSizing: 'border-box',
+        position: 'relative',
       }}
     >
-      {/* Left Column: Sessions List */}
+      {/* Left Column / Mobile List View: Sessions List */}
       <div
         style={{
-          width: '300px',
-          minWidth: '260px',
-          maxWidth: '320px',
+          width: isMobile ? '100%' : '300px',
+          minWidth: isMobile ? '100%' : '260px',
+          maxWidth: isMobile ? '100%' : '320px',
           flexShrink: 0,
-          borderRight: '1px solid rgba(255, 255, 255, 0.08)',
+          borderRight: isMobile ? 'none' : '1px solid rgba(255, 255, 255, 0.08)',
           backgroundColor: '#0B132B',
-          display: 'flex',
+          display: (!isMobile || mobileView === 'list') ? 'flex' : 'none',
           flexDirection: 'column',
           overflow: 'hidden',
+          height: '100%',
+          boxSizing: 'border-box',
         }}
       >
         <div style={{ padding: '16px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontWeight: 600, fontSize: '15px', color: '#FFFFFF' }}>Live Sessions</span>
+              <span style={{ fontWeight: 700, fontSize: '15px', color: '#FFFFFF' }}>Live Sessions</span>
               <span
                 style={{
                   backgroundColor: primaryColor,
@@ -311,7 +335,7 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
               </span>
             </div>
 
-            <div style={{ display: 'flex', gap: '4px' }}>
+            <div style={{ display: 'flex', gap: '6px' }}>
               {onSwitchToWidget && (
                 <button
                   type="button"
@@ -319,12 +343,13 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
                   title="Switch to Floating Widget"
                   style={{
                     backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                    border: 'none',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
                     color: '#94a3b8',
-                    padding: '5px 8px',
+                    padding: '5px 9px',
                     borderRadius: '6px',
                     cursor: 'pointer',
                     fontSize: '11px',
+                    fontWeight: 500,
                   }}
                 >
                   Widget
@@ -339,10 +364,11 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
                     backgroundColor: 'rgba(239, 68, 68, 0.15)',
                     border: '1px solid rgba(239, 68, 68, 0.3)',
                     color: '#f87171',
-                    padding: '5px 8px',
+                    padding: '5px 9px',
                     borderRadius: '6px',
                     cursor: 'pointer',
                     fontSize: '11px',
+                    fontWeight: 500,
                   }}
                 >
                   Sign Out
@@ -351,26 +377,28 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
             </div>
           </div>
 
-          <input
-            type="text"
-            placeholder="Search visitor / session..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              borderRadius: '8px',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              backgroundColor: 'rgba(255, 255, 255, 0.05)',
-              color: '#FFFFFF',
-              fontSize: '13px',
-              outline: 'none',
-              boxSizing: 'border-box',
-            }}
-          />
+          <div style={{ position: 'relative' }}>
+            <input
+              type="text"
+              placeholder="Search visitor / session..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                color: '#FFFFFF',
+                fontSize: '13px',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
         </div>
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '8px', WebkitOverflowScrolling: 'touch' }}>
           {filtered.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px 10px', color: '#64748B', fontSize: '13px' }}>
               No active chat sessions
@@ -386,9 +414,14 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
               return (
                 <div
                   key={s.sessionId}
-                  onClick={() => setSelectedSessionId(s.sessionId)}
+                  onClick={() => {
+                    setSelectedSessionId(s.sessionId);
+                    if (isMobile) {
+                      setMobileView('chat');
+                    }
+                  }}
                   style={{
-                    padding: '10px 12px',
+                    padding: '12px 14px',
                     borderRadius: '10px',
                     cursor: 'pointer',
                     backgroundColor: isSelected ? '#1E293B' : 'transparent',
@@ -398,28 +431,31 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
                     alignItems: 'center',
                     marginBottom: '4px',
                     transition: 'all 0.15s ease',
+                    minHeight: '48px',
+                    boxSizing: 'border-box',
                   }}
                 >
-                  <div style={{ overflow: 'hidden', paddingRight: '8px' }}>
-                    <div style={{ fontWeight: 600, fontSize: '13px', color: '#FFFFFF' }}>
+                  <div style={{ overflow: 'hidden', paddingRight: '8px', flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: '13.5px', color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {s.clientName || 'Visitor'}
                     </div>
                     <div
                       style={{
-                        fontSize: '11px',
+                        fontSize: '11.5px',
                         color: '#94A3B8',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
-                        maxWidth: '180px',
+                        maxWidth: '200px',
+                        marginTop: '2px',
                       }}
                     >
                       {s.lastMessage || 'Started chat'}
                     </div>
                   </div>
 
-                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div style={{ fontSize: '10px', color: '#64748B' }}>{timeStr}</div>
+                  <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                    <div style={{ fontSize: '10.5px', color: '#64748B' }}>{timeStr}</div>
                     {s.unreadCount > 0 && (
                       <span
                         style={{
@@ -429,6 +465,7 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
                           fontSize: '10px',
                           padding: '2px 6px',
                           fontWeight: 'bold',
+                          boxShadow: '0 2px 4px rgba(239, 68, 68, 0.4)',
                         }}
                       >
                         {s.unreadCount}
@@ -442,15 +479,18 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
         </div>
       </div>
 
-      {/* Right Column: Active Conversation */}
+      {/* Right Column / Mobile Chat View: Active Conversation */}
       <div
         style={{
           flex: 1,
           minWidth: 0,
-          display: 'flex',
+          width: isMobile ? '100%' : 'auto',
+          display: (!isMobile || mobileView === 'chat') ? 'flex' : 'none',
           flexDirection: 'column',
           backgroundColor: '#090E17',
           overflow: 'hidden',
+          height: '100%',
+          boxSizing: 'border-box',
         }}
       >
         {active ? (
@@ -458,7 +498,7 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
             {/* Header */}
             <div
               style={{
-                padding: '14px 20px',
+                padding: isMobile ? '12px 14px' : '14px 20px',
                 borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
                 backgroundColor: '#0B132B',
                 display: 'flex',
@@ -466,18 +506,62 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
                 alignItems: 'center',
                 flexShrink: 0,
                 minWidth: 0,
+                gap: '8px',
               }}
             >
-              <div style={{ minWidth: 0, overflow: 'hidden' }}>
-                <div style={{ fontWeight: 600, fontSize: '14px', color: '#FFFFFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {active.clientName}
-                </div>
-                <div style={{ fontSize: '11px', color: '#64748B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  Session: <span style={{ color: primaryColor }}>{active.sessionId}</span>
+              <div style={{ display: 'flex', alignItems: 'center', minWidth: 0, overflow: 'hidden', gap: '8px' }}>
+                {isMobile && (
+                  <button
+                    type="button"
+                    onClick={() => setMobileView('list')}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                      border: '1px solid rgba(255, 255, 255, 0.12)',
+                      color: '#FFFFFF',
+                      borderRadius: '8px',
+                      padding: '6px 9px',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                    }}
+                    aria-label="Back to sessions list"
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M19 12H5M12 19l-7-7 7-7" />
+                    </svg>
+                    <span>Back</span>
+                    {otherUnreadCount > 0 && (
+                      <span
+                        style={{
+                          backgroundColor: '#EF4444',
+                          color: '#FFFFFF',
+                          borderRadius: '9999px',
+                          fontSize: '10px',
+                          padding: '1px 5px',
+                          fontWeight: 'bold',
+                        }}
+                      >
+                        {otherUnreadCount}
+                      </span>
+                    )}
+                  </button>
+                )}
+
+                <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                  <div style={{ fontWeight: 600, fontSize: '14px', color: '#FFFFFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {active.clientName}
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#64748B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    ID: <span style={{ color: primaryColor }}>{active.sessionId.substring(0, 16)}</span>
+                  </div>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+              <div style={{ display: 'flex', gap: isMobile ? '4px' : '8px', flexShrink: 0 }}>
                 <button
                   type="button"
                   onClick={handleDownloadTranscript}
@@ -487,42 +571,63 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
                     border: '1px solid rgba(255, 255, 255, 0.15)',
                     color: '#94a3b8',
                     borderRadius: '8px',
-                    padding: '6px 10px',
-                    fontSize: '12px',
+                    padding: isMobile ? '6px 8px' : '6px 10px',
+                    fontSize: isMobile ? '11px' : '12px',
                     cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
                   }}
                 >
-                  Export
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  {!isMobile && <span>Export</span>}
                 </button>
                 <button
                   type="button"
                   onClick={() => setSoundEnabled(!soundEnabled)}
+                  title={soundEnabled ? 'Alerts Enabled (Click to Mute)' : 'Alerts Muted (Click to Enable)'}
                   style={{
                     backgroundColor: 'transparent',
                     border: '1px solid rgba(255, 255, 255, 0.15)',
                     color: soundEnabled ? primaryColor : '#64748B',
                     borderRadius: '8px',
-                    padding: '6px 10px',
-                    fontSize: '12px',
+                    padding: isMobile ? '6px 8px' : '6px 10px',
+                    fontSize: isMobile ? '11px' : '12px',
                     cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
                   }}
                 >
-                  {soundEnabled ? '🔔 Alert On' : '🔕 Muted'}
+                  <span>{soundEnabled ? '🔔' : '🔕'}</span>
+                  {!isMobile && <span>{soundEnabled ? 'Alert On' : 'Muted'}</span>}
                 </button>
                 <button
                   type="button"
                   onClick={() => handleDeleteSession(active.sessionId)}
+                  title="Delete Session"
                   style={{
                     backgroundColor: 'transparent',
                     border: '1px solid rgba(239, 68, 68, 0.3)',
                     color: '#EF4444',
                     borderRadius: '8px',
-                    padding: '6px 10px',
-                    fontSize: '12px',
+                    padding: isMobile ? '6px 8px' : '6px 10px',
+                    fontSize: isMobile ? '11px' : '12px',
                     cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
                   }}
                 >
-                  Delete
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  </svg>
+                  {!isMobile && <span>Delete</span>}
                 </button>
               </div>
             </div>
@@ -532,9 +637,10 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
               style={{
                 flex: 1,
                 minHeight: 0,
-                padding: '16px 20px',
+                padding: isMobile ? '14px 12px' : '16px 20px',
                 overflowY: 'auto',
                 overflowX: 'hidden',
+                WebkitOverflowScrolling: 'touch',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '12px',
@@ -561,8 +667,8 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
                   >
                     <div
                       style={{
-                        maxWidth: '75%',
-                        minWidth: '120px',
+                        maxWidth: isMobile ? '88%' : '75%',
+                        minWidth: '100px',
                         padding: '10px 14px',
                         borderRadius: '12px',
                         backgroundColor: isAgent ? primaryColor : '#1E293B',
@@ -570,6 +676,7 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
                         lineHeight: '1.45',
                         fontSize: '13.5px',
                         wordBreak: 'break-word',
+                        overflowWrap: 'break-word',
                         boxShadow: isAgent ? `0 4px 12px ${primaryColor}40` : '0 4px 12px rgba(0,0,0,0.2)',
                       }}
                     >
@@ -593,7 +700,7 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
                                     cursor: 'pointer',
                                     border: '1px solid rgba(255, 255, 255, 0.15)',
                                     backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                                    maxWidth: '260px',
+                                    maxWidth: isMobile ? '100%' : '260px',
                                   }}
                                 >
                                   <img
@@ -617,7 +724,7 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
                                       justifyContent: 'space-between',
                                     }}
                                   >
-                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '160px' }}>
+                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '140px' }}>
                                       {att.name}
                                     </span>
                                     <span>{formatBytes(att.size)}</span>
@@ -694,6 +801,7 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
                 display: 'flex',
                 gap: '6px',
                 overflowX: 'auto',
+                WebkitOverflowScrolling: 'touch',
                 maxWidth: '100%',
                 flexShrink: 0,
                 boxSizing: 'border-box',
@@ -709,7 +817,7 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
                     border: '1px solid rgba(255, 255, 255, 0.1)',
                     color: '#CBD5E1',
                     borderRadius: '20px',
-                    padding: '4px 10px',
+                    padding: '5px 12px',
                     fontSize: '11px',
                     cursor: 'pointer',
                     whiteSpace: 'nowrap',
@@ -725,12 +833,13 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
             {pendingAttachments.length > 0 && (
               <div
                 style={{
-                  padding: '6px 16px',
+                  padding: '6px 14px',
                   backgroundColor: '#0f172a',
                   borderTop: '1px solid rgba(255, 255, 255, 0.08)',
                   display: 'flex',
                   gap: '8px',
                   overflowX: 'auto',
+                  WebkitOverflowScrolling: 'touch',
                   flexShrink: 0,
                   boxSizing: 'border-box',
                 }}
@@ -793,7 +902,7 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
             <form
               onSubmit={(e) => handleSendReply(e)}
               style={{
-                padding: '12px 16px',
+                padding: isMobile ? '10px 12px' : '12px 16px',
                 borderTop: '1px solid rgba(255, 255, 255, 0.08)',
                 backgroundColor: '#0B132B',
                 display: 'flex',
@@ -823,11 +932,12 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
                   border: 'none',
                   color: '#94a3b8',
                   cursor: 'pointer',
-                  padding: '8px',
+                  padding: isMobile ? '6px' : '8px',
                   borderRadius: '8px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  flexShrink: 0,
                 }}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -837,12 +947,13 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
 
               <input
                 type="text"
-                placeholder={`Reply as ${adminName}...`}
+                placeholder={isMobile ? 'Reply message...' : `Reply as ${adminName}...`}
                 value={replyText}
                 onChange={(e) => setReplyText(e.target.value)}
                 style={{
                   flex: 1,
-                  padding: '10px 14px',
+                  minWidth: 0,
+                  padding: isMobile ? '8px 12px' : '10px 14px',
                   borderRadius: '10px',
                   border: '1px solid rgba(255, 255, 255, 0.1)',
                   backgroundColor: 'rgba(255, 255, 255, 0.08)',
@@ -859,20 +970,46 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
                   color: '#FFFFFF',
                   border: 'none',
                   borderRadius: '10px',
-                  padding: '10px 18px',
+                  padding: isMobile ? '8px 12px' : '10px 18px',
                   fontWeight: 'bold',
                   fontSize: '13px',
                   cursor: (!replyText.trim() && pendingAttachments.length === 0) ? 'not-allowed' : 'pointer',
                   opacity: (!replyText.trim() && pendingAttachments.length === 0) ? 0.5 : 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  flexShrink: 0,
                 }}
               >
-                Send Reply
+                <span>{isMobile ? 'Send' : 'Send Reply'}</span>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="22" y1="2" x2="11" y2="13" />
+                  <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                </svg>
               </button>
             </form>
           </>
         ) : (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748B' }}>
-            Select a session from the list to start chatting
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#64748B', padding: '24px', textAlign: 'center', gap: '12px' }}>
+            <div style={{ fontSize: '14px' }}>Select a session from the list to start chatting</div>
+            {isMobile && (
+              <button
+                type="button"
+                onClick={() => setMobileView('list')}
+                style={{
+                  backgroundColor: primaryColor,
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '8px 16px',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                }}
+              >
+                View Session List
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -883,16 +1020,16 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.9)',
+            backgroundColor: 'rgba(0, 0, 0, 0.92)',
             zIndex: 1000000,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '20px',
+            padding: '16px',
           }}
           onClick={() => setPreviewImage(null)}
         >
-          <div style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }}>
+          <div style={{ position: 'relative', maxWidth: '95vw', maxHeight: '90vh' }}>
             <img
               src={previewImage}
               alt="Preview"
@@ -922,6 +1059,7 @@ export const AdminLiveChat: React.FC<AdminLiveChatProps> = ({
                 justifyContent: 'center',
                 fontWeight: 'bold',
                 fontSize: '16px',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.5)',
               }}
             >
               ×
